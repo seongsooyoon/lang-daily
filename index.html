@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="매일언어">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="css/style.css?v=202608230741">
+<link rel="stylesheet" href="css/style.css?v=202608230806">
 </head>
 <body>
 
@@ -34,6 +34,7 @@
     </button>
     <button class="daynav" id="day-next" title="다음 회차">›</button>
   </div>
+  <button class="lvbar" id="lvbar"></button>
   <div class="progress"><div class="progress-in" id="progress-in"></div></div>
 </header>
 
@@ -45,6 +46,7 @@
   <button data-step="talk">⑤ 대화</button>
   <button data-step="review">⑥ 복습</button>
   <button data-step="done">⑦ 미션</button>
+  <button data-step="trophy">🏆 성취</button>
   <button data-step="report">📊 평가</button>
 </nav>
 
@@ -128,6 +130,12 @@
     <button class="go primary" id="btn-complete">오늘 학습 완료</button>
   </section>
 
+  <!-- 성취 -->
+  <section class="step" data-step="trophy">
+    <h2>성취 <span class="sub">오늘의 몫과 쌓인 것</span></h2>
+    <div id="trophy-body"></div>
+  </section>
+
   <!-- 평가 -->
   <section class="step" data-step="report">
     <h2>발음 평가 <span class="sub">7회차마다 누적</span></h2>
@@ -185,12 +193,13 @@
 
 <div class="toast hidden" id="toast"></div>
 
-<script src="js/store.js?v=202608230741"></script>
-<script src="js/speech.js?v=202608230741"></script>
-<script src="js/review.js?v=202608230741"></script>
-<script src="js/record.js?v=202608230741"></script>
-<script src="js/rhotic.js?v=202608230741"></script>
-<script src="js/report.js?v=202608230741"></script>
-<script src="js/app.js?v=202608230741"></script>
+<script src="js/store.js?v=202608230806"></script>
+<script src="js/speech.js?v=202608230806"></script>
+<script src="js/review.js?v=202608230806"></script>
+<script src="js/record.js?v=202608230806"></script>
+<script src="js/rhotic.js?v=202608230806"></script>
+<script src="js/game.js?v=202608230806"></script>
+<script src="js/report.js?v=202608230806"></script>
+<script src="js/app.js?v=202608230806"></script>
 </body>
 </html>

@@ -5,6 +5,7 @@
   var DATA = {};                 // { zh: {...}, en: {...} }
   var MOTIVE = null;             // 동기 문구 (심리학 근거 포함)
   var BOSTON = null;             // 보스턴 발음 진단 세트
+  var BGUIDE = null;             // 보스턴 발음 구조 (조사 정리)
   var lang = 'zh';
   var day = 1;
   var step = 'brief';
@@ -183,6 +184,8 @@
     // 인식이 안 되는 브라우저에서는 대표님이 직접 센다
     if (!w.Speech.canListen()) {
       var v0 = w.Store.addWordRep(lang, day, idx, null);
+      gain('wordRep');
+      if (v0.reps === w.Store.REPS) gain('wordDone');
       itemEl.querySelector('[data-dots]').innerHTML = dotsHTML(v0.reps);
       itemEl.classList.toggle('done', v0.reps >= w.Store.REPS);
       updateWordBar();
@@ -200,6 +203,8 @@
       var pass = r.score >= 60;
       if (pass) {
         var v = w.Store.addWordRep(lang, day, idx, r.score);
+        gain('wordRep');
+        if (v.reps === w.Store.REPS) gain('wordDone');
         itemEl.querySelector('[data-dots]').innerHTML = dotsHTML(v.reps);
         itemEl.classList.toggle('done', v.reps >= w.Store.REPS);
         btn.textContent = v.reps >= w.Store.REPS ? '🎙 더 연습' : '🎙 다시 (' + v.reps + '/' + w.Store.REPS + ')';
@@ -487,7 +492,23 @@
     var box = $('#boston-body');
     if (lang !== 'en' || !BOSTON) { box.innerHTML = ''; return; }
     var sc = w.Store.bostonScore('en');
-    var h = '<div class="card bost">';
+    var h = '';
+    if (BGUIDE) {
+      h += '<div class="card bguide"><details><summary><b>' + esc(BGUIDE.title) + '</b> — 눌러서 펼치기</summary>';
+      h += '<p class="tip">' + esc(BGUIDE.lead) + '</p>';
+      BGUIDE.sections.forEach(function (x) {
+        h += '<div class="gsec"><div class="gt"><span class="gn">' + esc(x.n) + '</span>' + esc(x.title) + '</div>';
+        h += '<div class="gb">' + esc(x.body) + '</div>';
+        h += '<div class="ge">' + esc(x.ex) + '</div>';
+        h += '<div class="gc">확인: ' + esc(x.check) + '</div></div>';
+      });
+      h += '<div class="gsec"><div class="gt">' + esc(BGUIDE.practical.title) + '</div>' +
+           '<div class="gb">' + esc(BGUIDE.practical.body) + '</div></div>';
+      h += '<div class="src">출처: ' + esc(BGUIDE.sources.join(' · ')) + '<br>' +
+           esc(BGUIDE.tooling) + '</div>';
+      h += '</details></div>';
+    }
+    h += '<div class="card bost">';
     h += '<h3>' + esc(BOSTON.title) + '</h3>';
     h += '<p class="tip">' + esc(BOSTON.intro) + '</p>';
     h += '<div class="bscore">' + bostonScoreHTML(sc) + '</div>';
@@ -597,6 +618,7 @@
       return;
     }
     w.Store.putBoston('en', key, word, j);
+    if (j.ok) gain('boston');
     note.innerHTML =
       '<div class="bverdict ' + (j.ok ? 'ok' : 'no') + '">' +
       (expect
@@ -609,8 +631,99 @@
     if (sb) sb.innerHTML = bostonScoreHTML(w.Store.bostonScore('en'));
   }
 
+  /* ---------------- 성취 (점수·레벨·배지·퀘스트·공유) ---------------- */
+
+  function renderLvBar() {
+    var L = w.Game.level(lang);
+    $('#lvbar').innerHTML =
+      '<span class="lv">Lv.' + L.lv + '</span>' +
+      '<span class="lvt">' + esc(L.title) + '</span>' +
+      '<span class="lvxp">' + L.xp.toLocaleString() + '점</span>' +
+      '<span class="lvgauge"><i style="width:' + L.pct + '%"></i></span>';
+  }
+
+  // 점수를 주고, 화면 위 눈금과 오늘 몫을 함께 갱신한다
+  function gain(key, times) {
+    var got = w.Game.add(lang, key, times);
+    if (got) { renderLvBar(); }
+    return got;
+  }
+
+  function renderTrophy() {
+    var c = cfg();
+    var L = w.Game.level(lang);
+    var qs = w.Game.quests(lang, c, day);
+    var bd = w.Game.check(lang, c);
+    var streak = w.Store.streak();
+    var today = w.Game.todayXP(lang), week = w.Game.weekXP(lang);
+    var WEEK_GOAL = 700;
+    var h = '';
+
+    // 레벨 카드
+    h += '<div class="card lvcard">';
+    h += '<div class="lvtop"><div class="lvnum">' + L.lv + '</div>';
+    h += '<div><b>' + esc(L.title) + '</b><div class="tip">' + L.xp.toLocaleString() + '점 누적' +
+         (L.max ? ' · 최고 단계' : ' · 다음 단계까지 ' + L.toNext + '점') + '</div></div></div>';
+    h += '<div class="mini big"><div class="mini-in" style="width:' + L.pct + '%"></div></div>';
+    h += '<div class="lvfoot"><span>오늘 <b>' + today + '</b>점</span>' +
+         '<span>연속 <b>' + streak + '</b>일</span>' +
+         '<span>이번 주 <b>' + week + '</b>점</span></div>';
+    h += '</div>';
+
+    // 주간 목표 — 목표경사효과: 남은 거리를 늘 보여 준다
+    var wp = Math.min(100, Math.round(week / WEEK_GOAL * 100));
+    h += '<div class="card"><h3>이번 주 목표</h3>';
+    h += '<div class="mini big"><div class="mini-in ' + (wp >= 100 ? 'ok' : '') + '" style="width:' + wp + '%"></div></div>';
+    h += '<p class="tip">' + week + ' / ' + WEEK_GOAL + '점' +
+         (wp >= 100 ? ' — 이번 주 목표를 넘겼습니다.' : ' — ' + (WEEK_GOAL - week) + '점 남았습니다.') + '</p></div>';
+
+    // 오늘의 퀘스트
+    h += '<div class="card"><h3>오늘의 퀘스트 <span class="sub">완료마다 +' + w.Game.XP.quest + '점</span></h3>';
+    qs.forEach(function (q) {
+      var pct = Math.round(q.cur / q.goal * 100);
+      h += '<div class="quest' + (q.done ? ' done' : '') + '">';
+      h += '<div class="qmark">' + (q.done ? '✔' : '○') + '</div>';
+      h += '<div class="qbody"><b>' + esc(q.name) + '</b>' +
+           '<div class="mini"><div class="mini-in ' + (q.done ? 'ok' : '') + '" style="width:' + pct + '%"></div></div>' +
+           '<span class="tip">' + q.cur + ' / ' + q.goal + ' · ' + esc(q.hint) + '</span></div>';
+      h += '</div>';
+    });
+    h += '</div>';
+
+    // 배지
+    h += '<div class="card"><h3>배지 <span class="sub">' +
+         Object.keys(bd.owned).length + ' / ' + w.Game.BADGES.length + '</span></h3><div class="badges">';
+    w.Game.BADGES.forEach(function (b) {
+      var has = !!bd.owned[b.k];
+      h += '<div class="badge' + (has ? ' has' : '') + '" title="' + esc(b.desc) + '">' +
+           '<span class="bi">' + b.icon + '</span><span class="bn">' + esc(b.name) + '</span>' +
+           '<span class="bd">' + esc(has ? bd.owned[b.k] + ' 획득' : b.desc) + '</span></div>';
+    });
+    h += '</div></div>';
+
+    // 친구에게
+    h += '<div class="card"><h3>친구와 함께</h3>';
+    h += '<p class="tip">오늘 성적을 카카오톡·문자로 보낼 수 있습니다. ' +
+         '함께 하는 사람이 있으면 이어 가는 비율이 올라갑니다(관계성 — Deci &amp; Ryan).</p>';
+    h += '<pre class="sharebox" id="sharebox">' + esc(w.Game.shareText(lang, c, day)) + '</pre>';
+    h += '<button class="go primary" id="btn-share">친구에게 보내기</button>';
+    h += '<p class="hint">휴대폰에서는 공유창이 떠서 <b>카카오톡</b>을 고르실 수 있고, PC에서는 글이 복사됩니다.</p>';
+    h += '</div>';
+
+    h += '<div class="card"><p class="tip">점수는 상품이 아니라 <b>피드백</b>입니다. ' +
+         '보상을 크게 걸면 좋아서 하던 일이 보상 때문에 하는 일로 바뀐다는 연구(과잉정당화 효과, Deci 1971)가 있어, ' +
+         '무작위 보상이나 요란한 연출은 일부러 넣지 않았습니다.</p></div>';
+
+    $('#trophy-body').innerHTML = h;
+
+    if (bd.fresh.length) {
+      var b0 = w.Game.badgeOf(bd.fresh[0]);
+      if (b0) toast(b0.icon + ' 배지 획득 — ' + b0.name, 3600);
+    }
+  }
+
   function renderAll() {
-    renderHeader(); renderMotive(); renderBrief(); renderWords(); renderLearn();
+    renderHeader(); renderLvBar(); renderMotive(); renderBrief(); renderWords(); renderLearn();
     renderSay(); renderTalk(); renderReview(); renderDone();
   }
 
@@ -623,6 +736,7 @@
     if (s === 'review') renderReview();
     if (s === 'say') updateSayScore();
     if (s === 'words') updateWordBar();
+    if (s === 'trophy') renderTrophy();
     if (s === 'report') { renderBoston(); renderReport(); renderSituations(); }
     if (s !== 'talk') { talk.running = false; w.Speech.stop(); w.Speech.abort(); }
     w.Rec.cancel();
@@ -680,7 +794,13 @@
     w.Speech.listen(c.meta.asr, function (alts) {
       btn.classList.remove('rec'); btn.textContent = '🎙 다시 말하기';
       var r = w.Speech.score(text, alts, lang);
+      var prevBest = w.Store.getScore(lang, srcDay, idx);
       var best = w.Store.putScore(lang, srcDay, idx, r.score);
+      if (prevBest == null || r.score > prevBest) {
+        var xk = w.Game.xpForScore(r.score);
+        if (xk) gain(xk);
+        if (srcDay !== day) gain('review');
+      }
       w.Report.recordMarks(lang, text, itemEl.dataset.phon, r.marks);
       var cls = r.score >= 80 ? 'good' : r.score >= 55 ? 'mid' : 'poor';
       var word = r.score >= 90 ? '아주 좋습니다' : r.score >= 80 ? '통합니다'
@@ -769,6 +889,7 @@
     if (judge && judge.judged && idx != null) {
       w.Store.putTone(lang, srcDay, idx, judge.hit, judge.judged);
       w.Report.recordTones(lang, expected, judge);
+      if (judge.judged >= 2 && judge.hit === judge.judged) gain('tonePerfect');
     }
 
     var h = '<div class="recrow">';
@@ -877,10 +998,13 @@
 
   function saveTalk() {
     if (talk.saved) return;
+    // 시작도 안 한 대화를 기록하면 '완주함'으로 잘못 잡힌다(퀘스트 오판정)
+    if (talk.i === 0 && talk.ok === 0 && talk.skip === 0) return;
     var t = dayData().dialogue;
     if (!t) return;
     var mine = t.turns.filter(function (x) { return x.who === 'me'; }).length;
     w.Store.putTalk(lang, day, mine, talk.ok, talk.skip);
+    if (talk.ok > 0) gain('talkDone');
     talk.saved = true;
   }
 
@@ -905,6 +1029,7 @@
         res.innerHTML = '✔ ' + r.score + '점 — 통했습니다';
         btn.textContent = '🎙 말하기';
         talk.ok++;
+        gain('talkTurn');
         advanceTurn(i, null, false);
       } else {
         res.innerHTML = '✕ ' + r.score + '점 · 들린 대로: <b>' + esc(r.heard || '(없음)') + '</b><br>' +
@@ -1057,6 +1182,13 @@
         case 'day-prev': setDay(day - 1); go(step); break;
         case 'day-next': setDay(day + 1); go(step); break;
         case 'day-open': openDaySheet(); break;
+        case 'lvbar': go('trophy'); break;
+        case 'btn-share':
+          w.Game.share($('#sharebox').textContent, null).then(function (how) {
+            if (how === 'copied') toast('글을 복사했습니다. 카카오톡에 붙여넣으십시오.', 3600);
+            else if (how === 'failed') toast('복사하지 못했습니다. 글상자를 길게 눌러 복사해 주십시오.', 3600);
+          });
+          break;
         case 'btn-menu': openSheet(); break;
         case 'btn-setwhy': openSheet(); setTimeout(function () { $('#in-why').focus(); }, 250); break;
         case 'talk-start':
@@ -1073,11 +1205,13 @@
             var dd = dayData();
             var r = w.Store.dayAvg(lang, day, dd.items.length);
             w.Store.complete(lang, day, { mission: $('#mission-chk').checked, avg: r.avg });
+            gain('dayDone');
+            w.Game.check(lang, cfg());
             var b = w.Report.blockOf(day);
             toast('Day ' + day + ' 완료. 수고하셨습니다, 대표님.' +
                   (day % w.Report.BLOCK === 0 ? ' — ' + b + '번째 평가가 확정됐습니다.' : ''));
           }
-          renderDone(); renderHeader(); renderMotive();
+          renderDone(); renderHeader(); renderLvBar(); renderMotive();
           break;
         }
         case 'btn-install':
@@ -1180,12 +1314,14 @@
 
   Promise.all([
     loadJSON('data/zh.json'), loadJSON('data/en.json'),
-    loadJSON('data/motivation.json'), loadJSON('data/boston.json')
+    loadJSON('data/motivation.json'), loadJSON('data/boston.json'),
+    loadJSON('data/boston_guide.json')
   ]).then(function (res) {
     if (res[0]) DATA.zh = res[0];
     if (res[1]) DATA.en = res[1];
     MOTIVE = res[2];                 // 없어도 앱은 돈다
     BOSTON = res[3];
+    BGUIDE = res[4];
     if (!DATA.zh && !DATA.en) return fail('data/zh.json · data/en.json 을 읽을 수 없습니다.');
     boot();
   });

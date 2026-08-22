@@ -15,7 +15,9 @@
 
   function blankLang() {
     return { done: {}, scores: {}, words: {}, tones: {}, sounds: {}, talk: {},
-             reports: {}, boston: {} };
+             reports: {}, boston: {},
+             // 성취(점수·배지·퀘스트) — game.js 가 읽고 쓴다
+             game: { xp: 0, log: {}, badges: {}, quests: {} } };
   }
   function blank() {
     return { v: 3, lang: 'zh', rate: 0.8, why: '', plan: '', zh: blankLang(), en: blankLang() };
@@ -38,6 +40,9 @@
         Object.keys(blankLang()).forEach(function (k) {
           if (o[L][k] && typeof o[L][k] === 'object') b[L][k] = o[L][k];
         });
+        // 예전 진도에는 game 칸이 없다 — 빈 값으로 채워 둔다
+        var gm = b[L].game || {};
+        b[L].game = { xp: gm.xp || 0, log: gm.log || {}, badges: gm.badges || {}, quests: gm.quests || {} };
       });
       return b;
     } catch (e) { return blank(); }
@@ -64,6 +69,14 @@
     // 왜 하는가(자율적 동기) · 언제 어디서 할 것인가(실행의도) — 둘 다 지속률을 올리는 장치
     why: function (v) { if (v != null) { this.state.why = String(v).slice(0, 300); this.save(); } return this.state.why || ''; },
     plan: function (v) { if (v != null) { this.state.plan = String(v).slice(0, 300); this.save(); } return this.state.plan || ''; },
+
+    /* ---------- 성취(점수·배지·퀘스트) ---------- */
+    game: function (lang) {
+      var g = this.state[lang].game;
+      if (!g) { g = { xp: 0, log: {}, badges: {}, quests: {} }; this.state[lang].game = g; }
+      return g;
+    },
+    saveGame: function (lang, g) { this.state[lang].game = g; this.save(); },
 
     /* ---------- 보스턴 발음 진단 ---------- */
     putBoston: function (lang, key, word, res) {

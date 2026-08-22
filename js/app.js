@@ -95,6 +95,7 @@
     var sc = opts.showScore ? w.Store.getScore(lang, opts.srcDay || day, i) : null;
     var h = '';
     h += '<div class="item" data-lang="' + lang + '" data-idx="' + i + '"' +
+         ' data-text="' + esc(it.text) + '" data-phon="' + esc(it.phon) + '"' +
          (opts.srcDay ? ' data-srcday="' + opts.srcDay + '"' : '') + '>';
     h += '<div class="num">' + esc(opts.label || (i + 1)) + '</div>';
     h += '<div class="main">' + esc(it.text) + '</div>';
@@ -106,10 +107,11 @@
     h += '<button class="playbtn slow" data-play="' + esc(it.text) + '" data-slow="1">🐢 느리게</button>';
     if (opts.mic) {
       h += '<button class="micbtn" data-mic="' + esc(it.text) + '">🎙 따라 말하기</button>';
+      h += '<button class="recbtn" data-rec="1">🔴 녹음해 비교</button>';
       if (sc != null) h += '<span class="num" style="margin-left:auto">최고 ' + sc + '점</span>';
     }
     h += '</div>';
-    if (opts.mic) h += '<div class="result"></div>';
+    if (opts.mic) h += '<div class="result"></div><div class="recbox"></div>';
     h += '</div>';
     return h;
   }
@@ -206,7 +208,7 @@
 
   function setLang(L) {
     if (L === lang) return;
-    w.Speech.stop(); w.Speech.abort();
+    w.Speech.stop(); w.Speech.abort(); w.Rec.cancel();
     lang = L; w.Store.lang(L);
     day = todayDay(cfg());
     renderAll(); go('brief');
@@ -215,7 +217,7 @@
   function setDay(n) {
     var c = cfg();
     day = Math.max(1, Math.min(c.meta.days, n));
-    w.Speech.stop(); w.Speech.abort();
+    w.Speech.stop(); w.Speech.abort(); w.Rec.cancel();
     renderAll();
   }
 
@@ -274,6 +276,127 @@
       res.innerHTML = '<div class="score">인식 실패</div><div class="heard">' +
         esc(w.Speech.errorText(code)) + '</div>';
     });
+  }
+
+  /* ---------------- 녹음해 비교 ----------------
+   * 음성인식 점수는 "무슨 말로 들렸는가"만 본다. 성조가 틀려도 글자가 맞게 인식되는 일이 있어,
+   * 그것만으로는 발음이 맞았는지 알 수 없다. 그래서 실제 목소리를 녹음해
+   * ①원어민과 번갈아 귀로 듣고 ②음높이 곡선을 눈으로 대 본다.
+   */
+
+  var player = null;
+
+  function playMine(url, done) {
+    if (player) { try { player.pause(); } catch (e) {} }
+    player = new Audio(url);
+    if (done) player.onended = done;
+    player.play().catch(function () { toast('녹음을 재생하지 못했습니다.'); });
+  }
+
+  function doRec(btn) {
+    var itemEl = btn.closest('.item');
+    var box = itemEl.querySelector('.recbox');
+    var text = itemEl.dataset.text;
+    var phon = itemEl.dataset.phon;
+
+    if (!w.Rec.supported()) {
+      box.className = 'recbox show';
+      box.innerHTML = '<p class="hint">' + esc(w.Rec.errorText('unsupported')) + '</p>';
+      return;
+    }
+
+    if (w.Rec.recording) {
+      btn.classList.remove('rec');
+      btn.textContent = '분석 중…';
+      btn.disabled = true;
+      w.Rec.stop(function (r) {
+        btn.disabled = false;
+        btn.textContent = '🔴 다시 녹음';
+        if (!r) { box.innerHTML = '<p class="hint">녹음이 저장되지 않았습니다.</p>'; return; }
+        box.innerHTML = '<p class="hint">소리를 살펴보는 중…</p>';
+        w.Rec.analyze(r.blob).then(function (an) { showRec(box, r, an, text, phon); });
+      });
+      return;
+    }
+
+    // 다른 카드가 녹음 중이면 정리하고 시작
+    w.Speech.stop(); w.Speech.abort(); w.Rec.cancel();
+    if (player) { try { player.pause(); } catch (e) {} }
+    $$('.recbtn').forEach(function (b) {
+      if (b !== btn) { b.classList.remove('rec'); if (b.textContent[0] === '■') b.textContent = '🔴 녹음해 비교'; }
+    });
+
+    box.className = 'recbox show';
+    box.innerHTML = '<p class="hint">마이크를 켜는 중…</p>';
+    w.Rec.start(function () {
+      btn.classList.add('rec');
+      btn.textContent = '■ 멈추고 확인';
+      box.innerHTML = '<p class="hint">● 녹음 중입니다. 문장을 또렷하게 말한 뒤 <b>■ 멈추고 확인</b>을 누르십시오.</p>';
+    }, function (code) {
+      btn.classList.remove('rec');
+      btn.textContent = '🔴 녹음해 비교';
+      box.innerHTML = '<p class="hint">' + esc(w.Rec.errorText(code)) + '</p>';
+    });
+  }
+
+  function showRec(box, rec, an, text, phon) {
+    var isZh = lang === 'zh';
+    var expected = isZh ? w.Rec.tones(phon) : [];
+    var judge = isZh && an ? w.Rec.judgeTones(an, expected) : null;
+    var hgt = isZh ? 132 : 84;
+
+    var h = '<div class="recrow">';
+    h += '<button class="playbtn" data-play="' + esc(text) + '">▶ 원어민</button>';
+    h += '<button class="playbtn" data-mine="1">▶ 내 발음</button>';
+    h += '<button class="micbtn" data-ab="' + esc(text) + '">↔ 번갈아 듣기</button>';
+    h += '</div>';
+    h += '<canvas class="curve" style="height:' + hgt + 'px"></canvas>';
+    h += '<div class="recnote"></div>';
+    box.className = 'recbox show';
+    box.innerHTML = h;
+    box.dataset.url = rec.url;
+
+    var cv = box.querySelector('canvas');
+    var dpr = Math.min(2, w.devicePixelRatio || 1);
+    var cw = Math.max(240, box.clientWidth || 300);
+    cv.width = Math.round(cw * dpr);
+    cv.height = Math.round(hgt * dpr);
+    cv._dpr = dpr;
+    cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    var note = box.querySelector('.recnote');
+    if (isZh) {
+      w.Rec.drawTones(cv, an, expected, judge);
+      note.innerHTML = zhNote(expected, judge, phon);
+    } else {
+      w.Rec.drawStress(cv, an);
+      note.innerHTML =
+        '<div class="legend"><span class="lg-mine"></span>내 목소리 세기</div>' +
+        '<p class="hint">봉우리가 <b>' + esc(phon) + '</b> 의 대문자 부분에 오면 강세가 제대로 실린 것입니다. ' +
+        '원어민과 번갈아 들으며 리듬이 같은지 확인하십시오.</p>';
+    }
+  }
+
+  function zhNote(expected, judge, phon) {
+    var h = '<div class="legend"><span class="lg-mine"></span>내 음높이' +
+            '<span class="lg-ref"></span>성조가 그려야 할 모양</div>';
+    if (!judge || !judge.judged) {
+      h += '<p class="hint">소리가 짧거나 작아 성조를 재지 못했습니다. 마이크에 가까이, 조금 길게 말씀해 보십시오.</p>';
+      return h;
+    }
+    h += '<div class="tonerow">';
+    expected.forEach(function (t, i) {
+      var got = judge.got[i];
+      var ok = (t === 0) ? null : (got === t);
+      var cls = ok === null ? 'tn' : (ok ? 'tn ok' : 'tn no');
+      h += '<span class="' + cls + '">' + (i + 1) + '음절 ' + esc(w.Rec.toneName(t)) +
+           (ok === null ? '' : (ok ? ' ○' : ' ✕ → ' + esc(w.Rec.toneName(got) || '?'))) + '</span>';
+    });
+    h += '</div>';
+    h += '<p class="hint"><b>성조 ' + judge.hit + ' / ' + judge.judged + ' 맞음.</b> ' +
+         '검은 선(내 음높이)이 주황 점선(성조 모양)을 따라가면 맞은 것입니다. ' +
+         '자동 판정은 참고용이니, 마지막 확인은 <b>번갈아 듣기</b>로 귀로 하십시오.</p>';
+    return h;
   }
 
   /* ---------------- 대화 엔진 ---------------- */
@@ -406,6 +529,25 @@
 
       if (t.dataset.play != null) { warnVoice(); say(t.dataset.play, t.dataset.slow === '1'); return; }
       if (t.dataset.mic != null) { doMic(t); return; }
+      if (t.dataset.rec != null) { doRec(t); return; }
+      if (t.dataset.mine != null) {
+        w.Speech.stop();
+        playMine(t.closest('.recbox').dataset.url);
+        return;
+      }
+      if (t.dataset.ab != null) {
+        // 원어민 → 내 발음 순서로 이어 들려준다. 차이가 귀에 가장 잘 잡히는 방식.
+        var url = t.closest('.recbox').dataset.url;
+        var c = cfg();
+        t.textContent = '▶ 원어민…';
+        w.Speech.speak(t.dataset.ab, c.meta.tts, w.Store.rate(), function () {
+          t.textContent = '▶ 내 발음…';
+          setTimeout(function () {
+            playMine(url, function () { t.textContent = '↔ 번갈아 듣기'; });
+          }, 350);
+        });
+        return;
+      }
       if (t.dataset.tmic != null) { talkMic(parseInt(t.dataset.tmic, 10), t); return; }
       if (t.dataset.tskip != null) { advanceTurn(parseInt(t.dataset.tskip, 10), '건너뛰었습니다.'); return; }
       if (t.dataset.lang) { setLang(t.dataset.lang); return; }
@@ -425,7 +567,7 @@
           warnVoice();
           talkStep();
           break;
-        case 'talk-reset': renderTalk(); w.Speech.stop(); w.Speech.abort(); break;
+        case 'talk-reset': renderTalk(); w.Speech.stop(); w.Speech.abort(); w.Rec.cancel(); break;
         case 'btn-complete': {
           if (w.Store.isDone(lang, day)) w.Store.uncomplete(lang, day);
           else {
@@ -473,7 +615,7 @@
         w.Store.complete(lang, day, info);
       }
     });
-    w.addEventListener('pagehide', function () { w.Speech.stop(); w.Speech.abort(); });
+    w.addEventListener('pagehide', function () { w.Speech.stop(); w.Speech.abort(); w.Rec.cancel(); });
   }
 
   /* ---------------- 시작 ---------------- */

@@ -168,3 +168,23 @@ input[type=range]{width:100%;accent-color:var(--ink)}
   main{padding:1.4rem 1rem 5rem}
   .item .main{font-size:1.6rem}
 }
+
+/* 녹음해 비교 */
+.recbtn{background:#fff;border:1px solid var(--brick);color:var(--brick);
+  border-radius:10px;padding:.4rem .8rem;font-size:.85rem;font-weight:600}
+.recbtn.rec{background:var(--bad);border-color:var(--bad);color:#fff;animation:pulse 1s infinite}
+.recbtn:disabled{opacity:.55}
+.recbox{display:none;margin-top:.65rem;padding:.7rem;border-radius:12px;background:#FAFAF8;
+  border:1px solid var(--line)}
+.recbox.show{display:block}
+.recbox .hint{margin:.2rem 0 0}
+.recrow{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.6rem}
+canvas.curve{display:block;width:100%;background:#fff;border:1px solid var(--line);border-radius:10px}
+.legend{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;
+  font-size:.75rem;color:var(--dim);margin:.5rem 0 .25rem}
+.legend span{display:inline-block;width:18px;height:0;border-top:2px solid var(--ink);margin-right:.15rem}
+.legend .lg-ref{border-top:2px dashed var(--brick);margin-left:.7rem}
+.tonerow{display:flex;flex-wrap:wrap;gap:.3rem;margin:.4rem 0 .1rem}
+.tn{font-size:.75rem;padding:.15rem .45rem;border-radius:6px;background:#F3F4F6;color:var(--dim)}
+.tn.ok{background:#EAF6F0;color:var(--ok);font-weight:600}
+.tn.no{background:#FBEDED;color:var(--bad);font-weight:600}

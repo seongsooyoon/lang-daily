@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="42" fill="#1E3A5F"/>
+  <text x="52" y="92" font-family="serif" font-size="62" fill="#F7F4EE" text-anchor="middle">中</text>
+  <text x="132" y="150" font-family="Georgia,serif" font-size="58" fill="#B4623A" text-anchor="middle" font-weight="700">A</text>
+  <path d="M28 108 H164" stroke="#B4623A" stroke-width="5" stroke-linecap="round" opacity=".5"/>
+</svg>

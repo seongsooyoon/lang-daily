@@ -1,0 +1,170 @@
+/* 매일 언어 — 한국정책연구소 색계(잉크블루·벽돌·미색) */
+:root{
+  --ink:#1E3A5F; --ink-2:#2C5282; --brick:#B4623A; --paper:#F7F4EE;
+  --line:#E2DCD0; --text:#22262B; --dim:#6B7280; --ok:#2F7D5B; --warn:#B4623A; --bad:#B03A3A;
+  --card:#FFFFFF; --shadow:0 1px 2px rgba(30,58,95,.06),0 6px 20px rgba(30,58,95,.06);
+  --r:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  font-size:16px; line-height:1.6; -webkit-text-size-adjust:100%;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+h2{font-size:1.15rem;margin:0 0 .6rem;letter-spacing:-.01em}
+h2 .sub{font-size:.8rem;color:var(--dim);font-weight:500;margin-left:.4rem}
+h3{font-size:1.05rem;margin:.2rem 0 .5rem}
+h4{font-size:.9rem;margin:1.1rem 0 .4rem;color:var(--ink)}
+button{font-family:inherit;font-size:1rem;cursor:pointer;border:0;background:none;color:inherit}
+.hidden{display:none !important}
+.hint{color:var(--dim);font-size:.86rem;margin:.2rem 0 .8rem}
+
+/* 헤더 */
+.top{position:sticky;top:0;z-index:30;background:var(--ink);color:#fff;
+  padding-top:env(safe-area-inset-top);box-shadow:0 2px 10px rgba(0,0,0,.15)}
+.top-in{display:flex;align-items:center;justify-content:space-between;padding:.5rem .8rem 0}
+.langtabs{display:flex;gap:.35rem}
+.langtab{display:flex;align-items:center;gap:.35rem;padding:.35rem .75rem;border-radius:999px;
+  background:rgba(255,255,255,.10);color:rgba(255,255,255,.72);font-size:.85rem;font-weight:600}
+.langtab.on{background:#fff;color:var(--ink)}
+.langtab .flag{font-size:.75rem;font-weight:800;opacity:.9}
+.iconbtn{color:#fff;font-size:1.15rem;padding:.2rem .45rem;opacity:.85}
+.daybar{display:flex;align-items:center;gap:.4rem;padding:.35rem .5rem .6rem}
+.daynav{color:#fff;font-size:1.5rem;line-height:1;padding:.1rem .55rem;border-radius:8px;opacity:.7}
+.daynav:active{background:rgba(255,255,255,.12)}
+.dayinfo{flex:1;text-align:center;min-width:0}
+.dayline{display:flex;align-items:baseline;justify-content:center;gap:.3rem;font-size:1.05rem}
+.dayline strong{font-size:1.25rem;letter-spacing:-.02em}
+.dayline span{opacity:.65;font-size:.8rem}
+.pill{background:var(--brick);color:#fff;border-radius:999px;padding:.05rem .5rem;font-size:.72rem !important;
+  opacity:1 !important;font-weight:700}
+.daytheme{font-size:.78rem;opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.progress{height:3px;background:rgba(255,255,255,.15)}
+.progress-in{height:100%;background:var(--brick);width:0;transition:width .3s}
+
+/* 단계 네비 */
+.steps{position:sticky;top:0;z-index:20;display:flex;gap:.3rem;overflow-x:auto;
+  padding:.5rem .8rem;background:var(--paper);border-bottom:1px solid var(--line);
+  scrollbar-width:none}
+.steps::-webkit-scrollbar{display:none}
+.steps button{white-space:nowrap;font-size:.82rem;padding:.3rem .7rem;border-radius:999px;
+  background:#fff;border:1px solid var(--line);color:var(--dim)}
+.steps button.on{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
+.steps button.did{border-color:var(--ok);color:var(--ok)}
+.steps button.on.did{background:var(--ok);border-color:var(--ok);color:#fff}
+
+main{padding:1rem .8rem 4rem;max-width:720px;margin:0 auto}
+.step{display:none}
+.step.on{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:1rem;box-shadow:var(--shadow);margin-bottom:.8rem}
+.tag{display:inline-block;background:#EEF2F7;color:var(--ink);border-radius:6px;
+  padding:.1rem .5rem;font-size:.75rem;font-weight:600}
+.tag.alt{background:#F6E9E2;color:var(--brick)}
+.brief-head{display:flex;gap:.4rem;margin-bottom:.5rem;flex-wrap:wrap}
+.tip{color:#4B5563;font-size:.92rem;margin:.3rem 0 0}
+.accentbox{margin-top:.9rem;padding:.8rem;border-left:3px solid var(--brick);background:#FCF7F3;border-radius:0 8px 8px 0}
+.accentbox h4{margin:0 0 .3rem;color:var(--brick)}
+.accentbox p{margin:0;font-size:.9rem;color:#4B5563}
+.plan{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.9rem;padding-top:.8rem;border-top:1px dashed var(--line);
+  font-size:.78rem;color:var(--dim)}
+.plan span{background:#F3F4F6;border-radius:6px;padding:.1rem .45rem}
+.plan b{margin-left:auto;color:var(--ink)}
+
+.go{display:block;width:100%;margin:.4rem 0 1.5rem;padding:.8rem;border-radius:12px;
+  background:#fff;border:1px solid var(--ink);color:var(--ink);font-weight:600}
+.go.primary,button.primary{background:var(--ink);color:#fff;border:1px solid var(--ink)}
+button.ghost{background:#fff;border:1px solid var(--line);color:var(--ink);
+  padding:.55rem .9rem;border-radius:10px;font-size:.88rem}
+button.wide{width:100%;padding:.8rem;border-radius:12px;margin-top:1rem}
+
+/* 문장 카드 */
+.list{display:flex;flex-direction:column;gap:.7rem;margin-bottom:1rem}
+.item{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:.9rem;box-shadow:var(--shadow)}
+.item .num{font-size:.72rem;color:var(--dim);font-weight:700;letter-spacing:.05em}
+.item .main{font-size:1.5rem;font-weight:700;letter-spacing:-.01em;margin:.15rem 0 .25rem;line-height:1.35;
+  word-break:keep-all}
+.item[data-lang="zh"] .main{font-size:1.65rem;letter-spacing:.02em}
+.item .phon{color:var(--ink-2);font-size:.92rem;font-weight:600}
+.item .kr{color:var(--brick);font-size:.88rem}
+.item .ko{margin-top:.35rem;font-size:.95rem}
+.item .row{display:flex;gap:.4rem;align-items:center;margin-top:.7rem;flex-wrap:wrap}
+.playbtn{background:#EEF2F7;color:var(--ink);border-radius:10px;padding:.4rem .8rem;font-size:.85rem;font-weight:600}
+.playbtn.slow{background:#F3F4F6;color:var(--dim)}
+.playbtn:active{transform:scale(.97)}
+.micbtn{background:var(--brick);color:#fff;border-radius:10px;padding:.4rem .9rem;font-size:.85rem;font-weight:600}
+.micbtn.rec{background:var(--bad);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.6}}
+.result{margin-top:.6rem;padding:.6rem .7rem;border-radius:10px;background:#F9FAFB;font-size:.88rem;display:none}
+.result.show{display:block}
+.result .score{font-weight:800;font-size:1.05rem}
+.result .heard{color:var(--dim);margin-top:.2rem;font-size:.85rem}
+.result .heard b{color:var(--text);font-weight:600}
+.result.good{background:#EAF6F0} .result.good .score{color:var(--ok)}
+.result.mid{background:#FDF4EC} .result.mid .score{color:var(--warn)}
+.result.poor{background:#FBEDED} .result.poor .score{color:var(--bad)}
+.ch-ok{color:var(--ok)} .ch-no{color:var(--bad);text-decoration:underline wavy var(--bad)}
+
+.scorebox{margin:.4rem 0 1rem;padding:.7rem;border-radius:12px;background:#fff;border:1px solid var(--line);
+  text-align:center;font-size:.9rem;color:var(--dim);display:none}
+.scorebox.show{display:block}
+.scorebox b{color:var(--ink);font-size:1.3rem}
+
+/* 대화 */
+.talkhead h3{margin:0 0 .2rem}
+.talklog{display:flex;flex-direction:column;gap:.6rem;margin:.8rem 0}
+.turn{max-width:88%;padding:.7rem .85rem;border-radius:14px;box-shadow:var(--shadow);font-size:.98rem}
+.turn.them{background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px;align-self:flex-start}
+.turn.me{background:var(--ink);color:#fff;border-bottom-right-radius:4px;align-self:flex-end}
+.turn .t-main{font-weight:700;font-size:1.12rem;line-height:1.4}
+.turn .t-phon{font-size:.82rem;opacity:.8;margin-top:.1rem}
+.turn .t-ko{font-size:.85rem;opacity:.75;margin-top:.25rem}
+.turn.me .t-phon,.turn.me .t-ko{opacity:.72}
+.turn .t-act{margin-top:.5rem;display:flex;gap:.4rem;flex-wrap:wrap}
+.turn.me .playbtn{background:rgba(255,255,255,.16);color:#fff}
+.turn .t-res{margin-top:.45rem;font-size:.85rem;padding:.35rem .5rem;border-radius:8px;background:rgba(255,255,255,.14)}
+.turn.waiting{outline:2px dashed var(--brick);outline-offset:2px}
+.talkctl{display:flex;gap:.5rem;margin-bottom:1rem}
+.talkctl button{flex:1;padding:.7rem;border-radius:12px}
+
+/* 미션 */
+.mission{display:flex;gap:.6rem;align-items:flex-start;font-size:.98rem;cursor:pointer}
+.mission input{width:22px;height:22px;margin-top:.15rem;accent-color:var(--ink);flex:none}
+.summary{font-size:.9rem}
+.summary .srow{display:flex;justify-content:space-between;padding:.35rem 0;border-bottom:1px dashed var(--line)}
+.summary .srow:last-child{border:0}
+.summary .srow b{color:var(--ink)}
+
+/* 시트 */
+.sheet{position:fixed;inset:0;z-index:50;background:rgba(20,26,34,.45);display:flex;align-items:flex-end}
+.sheet-in{background:var(--paper);width:100%;max-height:88vh;overflow-y:auto;border-radius:18px 18px 0 0;
+  padding:1.1rem 1rem calc(1.4rem + env(safe-area-inset-bottom));max-width:720px;margin:0 auto}
+.sheet-in h3{margin-top:0}
+.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+.stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:.6rem;text-align:center}
+.stat b{display:block;font-size:1.35rem;color:var(--ink);line-height:1.2}
+.stat span{font-size:.72rem;color:var(--dim)}
+.calendar{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:.3rem}
+.cday{aspect-ratio:1;border-radius:8px;background:#fff;border:1px solid var(--line);
+  font-size:.78rem;color:var(--dim);display:flex;align-items:center;justify-content:center}
+.cday.done{background:#EAF6F0;border-color:var(--ok);color:var(--ok);font-weight:700}
+.cday.now{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:700}
+.cday.future{opacity:.45}
+.row{display:flex;gap:.5rem;margin-top:.5rem;align-items:center}
+.row button{flex:1}
+#io-box{width:100%;height:110px;margin-top:.5rem;font-family:ui-monospace,Menlo,Consolas,monospace;
+  font-size:.72rem;border:1px solid var(--line);border-radius:10px;padding:.5rem;background:#fff}
+input[type=range]{width:100%;accent-color:var(--ink)}
+
+.toast{position:fixed;left:50%;bottom:1.6rem;transform:translateX(-50%);z-index:60;
+  background:var(--ink);color:#fff;padding:.6rem 1rem;border-radius:999px;font-size:.86rem;
+  box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:90vw;text-align:center}
+
+@media (min-width:640px){
+  main{padding:1.4rem 1rem 5rem}
+  .item .main{font-size:1.6rem}
+}

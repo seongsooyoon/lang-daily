@@ -1,0 +1,10 @@
+{
+  "name": "매일 언어 — 중국어 · 영어",
+  "short_name": "매일언어",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F7F4EE",
+  "theme_color": "#1E3A5F",
+  "lang": "ko",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

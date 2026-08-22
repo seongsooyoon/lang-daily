@@ -3,6 +3,8 @@
   'use strict';
 
   var DATA = {};                 // { zh: {...}, en: {...} }
+  var MOTIVE = null;             // 동기 문구 (심리학 근거 포함)
+  var BOSTON = null;             // 보스턴 발음 진단 세트
   var lang = 'zh';
   var day = 1;
   var step = 'brief';
@@ -435,8 +437,180 @@
     $('#report-body').innerHTML = h;
   }
 
+  /* ---------------- 학습 의욕 ----------------
+   * 기분 좋은 말이 아니라, 지속률을 실제로 올린다고 알려진 장치만 쓴다.
+   * ①오늘의 한 마디(근거 표기) ②나의 이유(자율적 동기) ③언제·어디서(실행의도)
+   * ④구간 축하(진전의 자각) ⑤막힐 때 읽는 글(자기자비·고원 대응)
+   */
+
+  function renderMotive() {
+    var box = $('#motive');
+    if (!MOTIVE) { box.innerHTML = ''; return; }
+    var m = null, i;
+    for (i = 0; i < MOTIVE.daily.length; i++) if (MOTIVE.daily[i].d === day) m = MOTIVE.daily[i];
+    if (!m) { box.innerHTML = ''; return; }
+
+    var h = '<div class="mv">';
+    h += '<div class="mv-line">' + esc(m.line) + '</div>';
+    h += '<div class="mv-why">' + esc(m.why) + '</div>';
+    var why = w.Store.why(), plan = w.Store.plan();
+    if (why || plan) {
+      h += '<div class="mv-mine">';
+      if (why) h += '<div><span>나의 이유</span> ' + esc(why) + '</div>';
+      if (plan) h += '<div><span>공부할 자리</span> ' + esc(plan) + '</div>';
+      h += '</div>';
+    } else {
+      h += '<button class="mv-set" id="btn-setwhy">왜 하는지·언제 할지 적어 두기 →</button>';
+    }
+    var ms = MOTIVE.milestones && MOTIVE.milestones[String(w.Store.doneCount(lang))];
+    if (ms) h += '<div class="mv-ms">🏁 ' + esc(ms) + '</div>';
+    h += '</div>';
+    box.innerHTML = h;
+  }
+
+  function renderSituations() {
+    var box = $('#situations');
+    if (!MOTIVE) { box.innerHTML = ''; return; }
+    var h = '<div class="card"><h3>막힐 때 읽는 글</h3>' +
+            '<p class="tip">' + esc(MOTIVE.note) + '</p><div class="sitlist">';
+    MOTIVE.situations.forEach(function (x) {
+      h += '<details class="sit"><summary>' + esc(x.title) + '</summary>' +
+           '<p>' + esc(x.body) + '</p><p class="mv-why">' + esc(x.why) + '</p></details>';
+    });
+    h += '</div></div>';
+    box.innerHTML = h;
+  }
+
+  /* ---------------- 보스턴 발음 진단 (영어) ---------------- */
+
+  function renderBoston() {
+    var box = $('#boston-body');
+    if (lang !== 'en' || !BOSTON) { box.innerHTML = ''; return; }
+    var sc = w.Store.bostonScore('en');
+    var h = '<div class="card bost">';
+    h += '<h3>' + esc(BOSTON.title) + '</h3>';
+    h += '<p class="tip">' + esc(BOSTON.intro) + '</p>';
+    h += '<div class="bscore">' + bostonScoreHTML(sc) + '</div>';
+    h += '<p class="hint">※ <b>▶ 원어민</b> 버튼은 <b>표준 미국 발음</b>입니다(브라우저에 보스턴 음성이 없습니다). ' +
+         '보스턴식은 아래 표기를 보고 흉내 내신 뒤 🔴 로 판정을 받으십시오.</p>';
+
+    BOSTON.groups.forEach(function (g) {
+      h += '<div class="bgroup"><h4>' + esc(g.name) + '</h4>';
+      h += '<p class="bgoal">' + esc(g.goal) + '</p>';
+      h += '<p class="tip">' + esc(g.how) + '</p>';
+      g.items.forEach(function (it) {
+        var prev = w.Store.getBoston('en', g.key, it.text);
+        h += '<div class="bword" data-bkey="' + esc(g.key) + '" data-bword="' + esc(it.text) + '"' +
+             ' data-bexpect="' + (g.expectRhotic === null ? 'null' : g.expectRhotic) + '"' +
+             ' data-bmode="' + esc(g.mode) + '">';
+        h += '<div class="bw-top"><b>' + esc(it.text) + '</b>' +
+             '<span class="bw-say">보스턴 ' + esc(it.boston) + '  /  표준 ' + esc(it.us) + '</span></div>';
+        h += '<div class="row">';
+        h += '<button class="playbtn" data-play="' + esc(it.text) + '">▶ 원어민</button>';
+        h += '<button class="recbtn" data-brec="1">' +
+             (g.expectRhotic === null ? '🔴 녹음해 비교' : '🔴 녹음해 판정') + '</button>';
+        if (prev && prev.ok != null) {
+          h += '<span class="num vd ' + (prev.ok ? 'ok' : 'no') + '">' +
+               (prev.ok ? '○ 보스턴식' : '✕ 표준식') + '</span>';
+        }
+        h += '</div><div class="bres"></div></div>';
+      });
+      h += '</div>';
+    });
+    h += '<p class="hint honest">' + esc(BOSTON.honest) + '</p>';
+    h += '</div>';
+    box.innerHTML = h;
+  }
+
+  function bostonScoreHTML(sc) {
+    if (!sc.n) return '<span>아직 판정한 항목이 없습니다. 아래에서 한 단어씩 녹음해 보십시오.</span>';
+    return '<b>' + sc.rate + '%</b><span>보스턴식으로 낸 항목 ' + sc.ok + ' / ' + sc.n + '</span>';
+  }
+
+  function doBostonRec(btn) {
+    var el = btn.closest('.bword');
+    var res = el.querySelector('.bres');
+    var key = el.dataset.bkey, word = el.dataset.bword;
+    var expect = el.dataset.bexpect === 'null' ? null : (el.dataset.bexpect === 'true');
+    var mode = el.dataset.bmode;
+
+    if (!w.Rec.supported()) {
+      res.innerHTML = '<p class="hint">' + esc(w.Rec.errorText('unsupported')) + '</p>';
+      return;
+    }
+
+    if (w.Rec.recording) {
+      btn.classList.remove('rec'); btn.textContent = '분석 중…'; btn.disabled = true;
+      w.Rec.stop(function (r) {
+        btn.disabled = false;
+        btn.textContent = expect === null ? '🔴 다시 녹음' : '🔴 다시 판정';
+        if (!r) { res.innerHTML = '<p class="hint">녹음이 저장되지 않았습니다.</p>'; return; }
+        res.innerHTML = '<p class="hint">소리를 살펴보는 중…</p>';
+        w.Rhotic.analyze(r.blob).then(function (an) {
+          showBoston(res, r, an, expect, mode, key, word);
+        });
+      });
+      return;
+    }
+
+    w.Speech.stop(); w.Speech.abort();
+    $$('.recbtn').forEach(function (b) {
+      if (b !== btn) { b.classList.remove('rec'); if (b.textContent[0] === '■') b.textContent = '🔴 녹음해 판정'; }
+    });
+    res.innerHTML = '<p class="hint">마이크를 켜는 중…</p>';
+    w.Rec.start(function () {
+      btn.classList.add('rec'); btn.textContent = '■ 멈추고 확인';
+      res.innerHTML = '<p class="hint">● <b>' + esc(word) + '</b> 한 마디만. 끝을 흐리지 말고 말한 뒤 멈추십시오.</p>';
+    }, function (code) {
+      btn.classList.remove('rec'); btn.textContent = '🔴 녹음해 판정';
+      res.innerHTML = '<p class="hint">' + esc(w.Rec.errorText(code)) + '</p>';
+    });
+  }
+
+  function showBoston(res, rec, an, expect, mode, key, word) {
+    var h = '<div class="recrow">';
+    h += '<button class="playbtn" data-play="' + esc(word) + '">▶ 원어민(표준)</button>';
+    h += '<button class="playbtn" data-mine="1">▶ 내 발음</button>';
+    h += '<button class="micbtn" data-ab="' + esc(word) + '">↔ 번갈아 듣기</button>';
+    h += '</div>';
+    h += '<canvas class="curve" style="height:84px"></canvas>';
+    h += '<div class="brnote"></div>';
+    res.innerHTML = h;
+    res.dataset.url = rec.url;
+
+    var cv = res.querySelector('canvas');
+    var dpr = Math.min(2, w.devicePixelRatio || 1);
+    var cw = Math.max(240, res.clientWidth || 300);
+    cv.width = Math.round(cw * dpr); cv.height = Math.round(84 * dpr);
+    cv._dpr = dpr; cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+    w.Rhotic.draw(cv, an, mode);
+
+    var note = res.querySelector('.brnote');
+    if (expect === null) {
+      note.innerHTML = '<p class="hint">이 항목은 자동 판정하지 않습니다. ' +
+        '<b>번갈아 듣기</b>로 표준 발음과 내 소리를 견주어 보십시오.</p>';
+      return;
+    }
+    var j = w.Rhotic.judge(an, expect, mode);
+    if (j.ok === null) {
+      note.innerHTML = '<p class="hint">소리가 짧아 재지 못했습니다. 조금 길게, 마이크에 가까이 말씀해 보십시오.</p>';
+      return;
+    }
+    w.Store.putBoston('en', key, word, j);
+    note.innerHTML =
+      '<div class="bverdict ' + (j.ok ? 'ok' : 'no') + '">' +
+      (expect
+        ? (j.isRhotic ? '○ r 을 살렸습니다 — 연결 r 성공' : '✕ r 이 끊겼습니다 — 두 단어를 붙여 보십시오')
+        : (j.isRhotic ? '✕ r 을 발음했습니다 — 미국 표준식입니다' : '○ r 을 흘렸습니다 — 보스턴식입니다')) +
+      '</div>' +
+      '<p class="hint">낮은 띠 / 높은 띠 에너지 비 <b>' + j.rise + '</b>배 ' +
+      '(1.55배 이상이면 r 을 낸 것으로 봅니다) · 판정 신뢰도 ' + j.conf + '</p>';
+    var sb = $('.bscore');
+    if (sb) sb.innerHTML = bostonScoreHTML(w.Store.bostonScore('en'));
+  }
+
   function renderAll() {
-    renderHeader(); renderBrief(); renderWords(); renderLearn();
+    renderHeader(); renderMotive(); renderBrief(); renderWords(); renderLearn();
     renderSay(); renderTalk(); renderReview(); renderDone();
   }
 
@@ -444,11 +618,12 @@
     step = s;
     $$('.step').forEach(function (el) { el.classList.toggle('on', el.dataset.step === s); });
     $$('.steps button').forEach(function (b) { b.classList.toggle('on', b.dataset.step === s); });
+    if (s === 'brief') renderMotive();
     if (s === 'done') renderDone();
     if (s === 'review') renderReview();
     if (s === 'say') updateSayScore();
     if (s === 'words') updateWordBar();
-    if (s === 'report') renderReport();
+    if (s === 'report') { renderBoston(); renderReport(); renderSituations(); }
     if (s !== 'talk') { talk.running = false; w.Speech.stop(); w.Speech.abort(); }
     w.Rec.cancel();
     w.scrollTo({ top: 0, behavior: 'smooth' });
@@ -819,12 +994,17 @@
       '<div class="stat"><b>' + w.Store.streak() + '</b><span>연속 학습일</span></div>' +
       '<div class="stat"><b>' + (avg == null ? '–' : avg) + '</b><span>발음 평균</span></div>';
     $('#install-box').innerHTML = installHTML();
+    $('#in-why').value = w.Store.why();
+    $('#in-plan').value = w.Store.plan();
     $('#rate-val').textContent = '현재 속도 ' + w.Store.rate().toFixed(2) + '배 (느릴수록 또렷)';
     $('#rate').value = w.Store.rate();
   }
 
   function openSheet() { renderSheet(); $('#sheet').classList.remove('hidden'); }
-  function closeSheet(id) { $('#' + id).classList.add('hidden'); if (id === 'sheet') $('#io-box').classList.add('hidden'); }
+  function closeSheet(id) {
+    $('#' + id).classList.add('hidden');
+    if (id === 'sheet') { $('#io-box').classList.add('hidden'); renderMotive(); }
+  }
 
   /* ---------------- 이벤트 ---------------- */
 
@@ -849,12 +1029,17 @@
       if (t.dataset.mic != null) { doMic(t); return; }
       if (t.dataset.wmic != null) { doWordMic(t); return; }
       if (t.dataset.rec != null) { doRec(t); return; }
+      if (t.dataset.brec != null) { doBostonRec(t); return; }
       if (t.dataset.tmic != null) { talkMic(parseInt(t.dataset.tmic, 10), t); return; }
       if (t.dataset.tskip != null) { advanceTurn(parseInt(t.dataset.tskip, 10), '건너뛰었습니다.', true); return; }
       if (t.dataset.jump != null) { setDay(parseInt(t.dataset.jump, 10)); go('say'); return; }
-      if (t.dataset.mine != null) { w.Speech.stop(); playMine(t.closest('.recbox').dataset.url); return; }
+      if (t.dataset.mine != null) {
+        w.Speech.stop();
+        playMine((t.closest('.recbox') || t.closest('.bres')).dataset.url);
+        return;
+      }
       if (t.dataset.ab != null) {
-        var url = t.closest('.recbox').dataset.url;
+        var url = (t.closest('.recbox') || t.closest('.bres')).dataset.url;
         t.textContent = '▶ 원어민…';
         w.Speech.speak(t.dataset.ab, cfg().meta.tts, w.Store.rate(), function () {
           t.textContent = '▶ 내 발음…';
@@ -873,6 +1058,7 @@
         case 'day-next': setDay(day + 1); go(step); break;
         case 'day-open': openDaySheet(); break;
         case 'btn-menu': openSheet(); break;
+        case 'btn-setwhy': openSheet(); setTimeout(function () { $('#in-why').focus(); }, 250); break;
         case 'talk-start':
           talk = { i: 0, running: true, ok: 0, skip: 0, saved: false };
           $('#talk-log').innerHTML = '';
@@ -891,7 +1077,7 @@
             toast('Day ' + day + ' 완료. 수고하셨습니다, 대표님.' +
                   (day % w.Report.BLOCK === 0 ? ' — ' + b + '번째 평가가 확정됐습니다.' : ''));
           }
-          renderDone(); renderHeader();
+          renderDone(); renderHeader(); renderMotive();
           break;
         }
         case 'btn-install':
@@ -928,6 +1114,8 @@
       $('#' + id).addEventListener('click', function (ev) { if (ev.target.id === id) closeSheet(id); });
     });
     $('#day-search').addEventListener('input', function () { renderDayList(this.value); });
+    $('#in-why').addEventListener('input', function () { w.Store.why(this.value); });
+    $('#in-plan').addEventListener('input', function () { w.Store.plan(this.value); });
     $('#rate').addEventListener('input', function () {
       w.Store.rate(parseFloat(this.value));
       $('#rate-val').textContent = '현재 속도 ' + w.Store.rate().toFixed(2) + '배 (느릴수록 또렷)';
@@ -990,9 +1178,14 @@
       .catch(function () { return null; });
   }
 
-  Promise.all([loadJSON('data/zh.json'), loadJSON('data/en.json')]).then(function (res) {
+  Promise.all([
+    loadJSON('data/zh.json'), loadJSON('data/en.json'),
+    loadJSON('data/motivation.json'), loadJSON('data/boston.json')
+  ]).then(function (res) {
     if (res[0]) DATA.zh = res[0];
     if (res[1]) DATA.en = res[1];
+    MOTIVE = res[2];                 // 없어도 앱은 돈다
+    BOSTON = res[3];
     if (!DATA.zh && !DATA.en) return fail('data/zh.json · data/en.json 을 읽을 수 없습니다.');
     boot();
   });

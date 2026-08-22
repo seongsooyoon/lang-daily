@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="매일언어">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="css/style.css?v=202608230728">
+<link rel="stylesheet" href="css/style.css?v=202608230741">
 </head>
 <body>
 
@@ -51,6 +51,7 @@
 <main id="main">
   <!-- ① 브리핑 -->
   <section class="step" data-step="brief">
+    <div class="motive" id="motive"></div>
     <h2>오늘의 브리핑</h2>
     <div class="card brief">
       <div class="brief-head"><span id="b-phase" class="tag"></span><span id="b-dday" class="tag alt"></span></div>
@@ -130,7 +131,9 @@
   <!-- 평가 -->
   <section class="step" data-step="report">
     <h2>발음 평가 <span class="sub">7회차마다 누적</span></h2>
+    <div id="boston-body"></div>
     <div id="report-body"></div>
+    <div id="situations"></div>
   </section>
 </main>
 
@@ -158,6 +161,12 @@
     <h4>휴대폰에 앱으로 설치</h4>
     <div id="install-box"></div>
 
+    <h4>나의 이유 · 공부할 자리</h4>
+    <p class="hint">스스로 정한 이유와 '언제·어디서'를 적어 두면 실제로 하는 날이 늘어납니다
+      (자기결정이론 · 실행의도 연구).</p>
+    <textarea id="in-why" rows="2" placeholder="나는 왜 이걸 하는가 — 예: 10월 출장에서 통역 없이 인사하고 건배하려고"></textarea>
+    <textarea id="in-plan" rows="2" placeholder="언제·어디서 할 것인가 — 예: 아침 7시 30분, 식탁에서 커피 마시며"></textarea>
+
     <h4>기기 간 진도 옮기기</h4>
     <p class="hint">진도는 이 기기에만 저장됩니다. 휴대폰↔PC를 맞추려면 내보내고 불러오십시오.</p>
     <div class="row">
@@ -176,11 +185,12 @@
 
 <div class="toast hidden" id="toast"></div>
 
-<script src="js/store.js?v=202608230728"></script>
-<script src="js/speech.js?v=202608230728"></script>
-<script src="js/review.js?v=202608230728"></script>
-<script src="js/record.js?v=202608230728"></script>
-<script src="js/report.js?v=202608230728"></script>
-<script src="js/app.js?v=202608230728"></script>
+<script src="js/store.js?v=202608230741"></script>
+<script src="js/speech.js?v=202608230741"></script>
+<script src="js/review.js?v=202608230741"></script>
+<script src="js/record.js?v=202608230741"></script>
+<script src="js/rhotic.js?v=202608230741"></script>
+<script src="js/report.js?v=202608230741"></script>
+<script src="js/app.js?v=202608230741"></script>
 </body>
 </html>

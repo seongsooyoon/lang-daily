@@ -261,3 +261,44 @@ b.ok{color:var(--ok)} b.mid{color:var(--warn)} b.bad{color:var(--bad)}
 .tk:hover{background:#F1EFE9}
 .tk:active,.tk.hit{background:#F6E3D8;color:var(--brick)}
 .turn.me .tk:active,.turn.me .tk.hit{background:rgba(255,255,255,.22);color:#fff}
+
+/* 학습 의욕 */
+.mv{background:linear-gradient(180deg,#243F63,#1E3A5F);color:#fff;border-radius:var(--r);
+  padding:.9rem 1rem;margin-bottom:.9rem;box-shadow:var(--shadow)}
+.mv-line{font-size:1.02rem;line-height:1.55;font-weight:600;word-break:keep-all}
+.mv-why{font-size:.75rem;opacity:.7;margin-top:.45rem;line-height:1.5}
+.mv-mine{margin-top:.7rem;padding-top:.6rem;border-top:1px solid rgba(255,255,255,.18);font-size:.83rem}
+.mv-mine div{margin:.15rem 0;opacity:.92}
+.mv-mine span{display:inline-block;background:rgba(255,255,255,.16);border-radius:5px;
+  padding:0 .35rem;font-size:.7rem;margin-right:.35rem}
+.mv-set{margin-top:.6rem;background:rgba(255,255,255,.14);color:#fff;border-radius:9px;
+  padding:.4rem .7rem;font-size:.82rem}
+.mv-ms{margin-top:.7rem;background:var(--brick);border-radius:9px;padding:.45rem .6rem;font-size:.85rem}
+.sitlist{display:flex;flex-direction:column;gap:.4rem;margin-top:.5rem}
+.sit{background:#fff;border:1px solid var(--line);border-radius:10px;padding:.55rem .7rem}
+.sit summary{cursor:pointer;font-weight:600;font-size:.92rem;color:var(--ink)}
+.sit p{font-size:.9rem;margin:.5rem 0 0;line-height:1.65}
+.sit .mv-why{color:var(--dim);opacity:1}
+#in-why,#in-plan{width:100%;margin-top:.4rem;padding:.55rem .7rem;border:1px solid var(--line);
+  border-radius:10px;font-family:inherit;font-size:.9rem;background:#fff;resize:vertical}
+
+/* 보스턴 발음 진단 */
+.bost h3{margin-bottom:.3rem}
+.bscore{display:flex;align-items:baseline;gap:.5rem;margin:.6rem 0;padding:.6rem .7rem;
+  background:#F7FAFD;border:1px solid var(--line);border-radius:12px;font-size:.85rem;color:var(--dim)}
+.bscore b{font-size:1.5rem;color:var(--ink)}
+.bgroup{margin-top:1rem;padding-top:.8rem;border-top:1px dashed var(--line)}
+.bgroup h4{margin:0 0 .2rem}
+.bgoal{margin:0;font-size:.85rem;color:var(--brick);font-weight:600}
+.bword{margin-top:.6rem;padding:.65rem;background:#fff;border:1px solid var(--line);border-radius:12px}
+.bw-top{display:flex;flex-direction:column;gap:.15rem;margin-bottom:.5rem}
+.bw-top b{font-size:1.25rem;letter-spacing:-.01em}
+.bw-say{font-size:.76rem;color:var(--dim)}
+.bres{margin-top:.55rem}
+.bres .hint{margin:0}
+.vd{font-weight:700;margin-left:auto}
+.vd.ok{color:var(--ok)} .vd.no{color:var(--bad)}
+.bverdict{font-weight:700;font-size:.95rem;padding:.5rem .6rem;border-radius:10px;margin-top:.5rem}
+.bverdict.ok{background:#EAF6F0;color:var(--ok)}
+.bverdict.no{background:#FBEDED;color:var(--bad)}
+.honest{border-left:3px solid var(--line);padding-left:.6rem;margin-top:1rem}

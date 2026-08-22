@@ -14,10 +14,11 @@
   var KEY = 'langdaily.v1';
 
   function blankLang() {
-    return { done: {}, scores: {}, words: {}, tones: {}, sounds: {}, talk: {}, reports: {} };
+    return { done: {}, scores: {}, words: {}, tones: {}, sounds: {}, talk: {},
+             reports: {}, boston: {} };
   }
   function blank() {
-    return { v: 2, lang: 'zh', rate: 0.8, zh: blankLang(), en: blankLang() };
+    return { v: 3, lang: 'zh', rate: 0.8, why: '', plan: '', zh: blankLang(), en: blankLang() };
   }
 
   function read() {
@@ -29,6 +30,8 @@
       if (!o || typeof o !== 'object') return b;
       b.lang = (o.lang === 'en' || o.lang === 'zh') ? o.lang : 'zh';
       b.rate = (typeof o.rate === 'number' && o.rate >= 0.4 && o.rate <= 1.4) ? o.rate : 0.8;
+      b.why = typeof o.why === 'string' ? o.why : '';
+      b.plan = typeof o.plan === 'string' ? o.plan : '';
       // v1 에서 올라온 진도도 그대로 살린다 — 없는 칸만 빈 값으로 채운다
       ['zh', 'en'].forEach(function (L) {
         if (!o[L] || typeof o[L] !== 'object') return;
@@ -40,6 +43,13 @@
     } catch (e) { return blank(); }
   }
 
+  // 날짜는 반드시 '이 기기의 날짜'로 찍는다.
+  // toISOString() 은 UTC 라서, 한국 아침 7시 학습이 전날로 기록돼 연속일수가 어긋난다.
+  function todayStr(d) {
+    var x = d || new Date();
+    return new Date(x.getTime() - x.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  }
+
   function write(s) {
     try { w.localStorage.setItem(KEY, JSON.stringify(s)); return true; }
     catch (e) { return false; }   // 시크릿 창·저장소 차단에서도 앱은 계속 돌아야 한다
@@ -47,9 +57,36 @@
 
   var Store = {
     state: read(),
+    todayStr: todayStr,      // 다른 모듈도 같은 기준으로 날짜를 찍게 한다
     save: function () { return write(this.state); },
 
     lang: function (v) { if (v) { this.state.lang = v; this.save(); } return this.state.lang; },
+    // 왜 하는가(자율적 동기) · 언제 어디서 할 것인가(실행의도) — 둘 다 지속률을 올리는 장치
+    why: function (v) { if (v != null) { this.state.why = String(v).slice(0, 300); this.save(); } return this.state.why || ''; },
+    plan: function (v) { if (v != null) { this.state.plan = String(v).slice(0, 300); this.save(); } return this.state.plan || ''; },
+
+    /* ---------- 보스턴 발음 진단 ---------- */
+    putBoston: function (lang, key, word, res) {
+      var g = this.state[lang].boston[key] || {};
+      g[word] = { ok: res.ok, rise: res.rise, conf: res.conf, date: todayStr() };
+      this.state[lang].boston[key] = g;
+      this.save();
+    },
+    getBoston: function (lang, key, word) {
+      var g = this.state[lang].boston[key];
+      return (g && g[word]) || null;
+    },
+    bostonScore: function (lang, keys) {
+      var ok = 0, n = 0, st = this.state[lang].boston;
+      (keys || Object.keys(st)).forEach(function (k) {
+        var g = st[k]; if (!g) return;
+        Object.keys(g).forEach(function (wd) {
+          if (g[wd].ok === null || g[wd].ok === undefined) return;
+          n++; if (g[wd].ok) ok++;
+        });
+      });
+      return { ok: ok, n: n, rate: n ? Math.round(ok / n * 100) : null };
+    },
     rate: function (v) { if (typeof v === 'number') { this.state.rate = v; this.save(); } return this.state.rate; },
 
     /* ---------- 문장 발음 점수 ---------- */
@@ -118,7 +155,7 @@
 
     putTalk: function (lang, day, turns, ok, skip) {
       this.state[lang].talk[String(day)] = {
-        turns: turns, ok: ok, skip: skip, date: new Date().toISOString().slice(0, 10)
+        turns: turns, ok: ok, skip: skip, date: todayStr()
       };
       this.save();
     },
@@ -129,8 +166,7 @@
     isDone: function (lang, day) { return !!this.state[lang].done[String(day)]; },
     getDone: function (lang, day) { return this.state[lang].done[String(day)] || null; },
     complete: function (lang, day, info) {
-      this.state[lang].done[String(day)] = Object.assign(
-        { date: new Date().toISOString().slice(0, 10) }, info || {});
+      this.state[lang].done[String(day)] = Object.assign({ date: todayStr() }, info || {});
       this.save();
     },
     uncomplete: function (lang, day) { delete this.state[lang].done[String(day)]; this.save(); },
@@ -158,13 +194,11 @@
       }, this);
       var n = 0, cur = new Date();
       for (;;) {
-        var key = new Date(cur.getTime() - cur.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-        if (dates[key]) { n++; cur.setDate(cur.getDate() - 1); }
+        if (dates[todayStr(cur)]) { n++; cur.setDate(cur.getDate() - 1); }
         else if (n === 0) {
           // 오늘 아직 안 했을 수 있으니 어제까지는 한 번 봐준다
           cur.setDate(cur.getDate() - 1);
-          var y = new Date(cur.getTime() - cur.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-          if (!dates[y]) return 0;
+          if (!dates[todayStr(cur)]) return 0;
         } else return n;
       }
     },

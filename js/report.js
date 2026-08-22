@@ -266,7 +266,7 @@
             talkRate: s.talkRate, grade: s.gradeInfo && s.gradeInfo.grade,
             score: s.gradeInfo && s.gradeInfo.score,
             level: s.talkInfo && s.talkInfo.level,
-            savedAt: new Date().toISOString().slice(0, 10)
+            savedAt: w.Store.todayStr()
           });
         }
       }

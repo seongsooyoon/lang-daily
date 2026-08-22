@@ -8,7 +8,12 @@
 <title>매일 언어 — 중국어 · 영어</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg">
-<link rel="stylesheet" href="css/style.css?v=202608230651">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="매일언어">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="css/style.css?v=202608230728">
 </head>
 <body>
 
@@ -18,15 +23,15 @@
       <button class="langtab" data-lang="zh"><span class="flag">中</span>중국어</button>
       <button class="langtab" data-lang="en"><span class="flag">EN</span>영어</button>
     </div>
-    <button class="iconbtn" id="btn-menu" title="설정·진도">☰</button>
+    <button class="iconbtn" id="btn-menu" title="회차 이동·진도·설정">☰</button>
   </div>
   <div class="daybar">
     <button class="daynav" id="day-prev" title="이전 회차">‹</button>
-    <div class="dayinfo">
+    <button class="dayinfo" id="day-open" title="회차 목록 열기">
       <div class="dayline"><strong id="day-n">Day 1</strong><span id="day-total">/ 55</span>
         <span class="pill" id="day-dday"></span></div>
-      <div class="daytheme"><span id="day-phase"></span> · <span id="day-theme"></span></div>
-    </div>
+      <div class="daytheme"><span id="day-phase"></span> · <span id="day-theme"></span> <span class="caret">▾</span></div>
+    </button>
     <button class="daynav" id="day-next" title="다음 회차">›</button>
   </div>
   <div class="progress"><div class="progress-in" id="progress-in"></div></div>
@@ -34,11 +39,13 @@
 
 <nav class="steps" id="steps">
   <button data-step="brief">① 브리핑</button>
-  <button data-step="learn">② 학습</button>
-  <button data-step="say">③ 발음</button>
-  <button data-step="talk">④ 대화</button>
-  <button data-step="review">⑤ 복습</button>
-  <button data-step="done">⑥ 미션</button>
+  <button data-step="words">② 단어</button>
+  <button data-step="learn">③ 문장</button>
+  <button data-step="say">④ 발음</button>
+  <button data-step="talk">⑤ 대화</button>
+  <button data-step="review">⑥ 복습</button>
+  <button data-step="done">⑦ 미션</button>
+  <button data-step="report">📊 평가</button>
 </nav>
 
 <main id="main">
@@ -54,30 +61,40 @@
         <p id="b-accent-body"></p>
       </div>
       <div class="plan">
-        <span>학습 5문장</span><span>발음 테스트</span><span>대화 1편</span><span>복습 4문장</span>
+        <span>단어 6개 × 5회</span><span>문장 5개</span><span>발음 확인</span><span>대화 1편</span><span>복습</span>
         <b>약 30분</b>
       </div>
     </div>
-    <button class="go" data-goto="learn">학습 시작 →</button>
+    <button class="go" data-goto="words">단어부터 시작 →</button>
   </section>
 
-  <!-- ② 학습 -->
+  <!-- ② 단어 -->
+  <section class="step" data-step="words">
+    <h2>오늘의 단어 <span class="sub">한 단어당 5번씩</span></h2>
+    <p class="hint" id="words-hint">듣고 → 따라 말하기를 <b>5번</b> 채우면 그 단어에 불이 들어옵니다. 입에 붙을 때까지가 목적입니다.</p>
+    <div class="wordbar"><div class="wordbar-in" id="wordbar-in"></div></div>
+    <div class="wordbar-txt" id="wordbar-txt"></div>
+    <div id="words-list" class="list"></div>
+    <button class="go" data-goto="learn">문장으로 →</button>
+  </section>
+
+  <!-- ③ 문장 학습 -->
   <section class="step" data-step="learn">
     <h2>오늘의 5문장</h2>
     <div id="learn-list" class="list"></div>
-    <button class="go" data-goto="say">발음 테스트로 →</button>
+    <button class="go" data-goto="say">발음 확인으로 →</button>
   </section>
 
-  <!-- ③ 발음 -->
+  <!-- ④ 발음 -->
   <section class="step" data-step="say">
-    <h2>발음 테스트</h2>
-    <p class="hint" id="say-hint">문장을 듣고, 마이크 버튼을 누른 뒤 소리 내어 따라 말하십시오.</p>
+    <h2>발음 확인</h2>
+    <p class="hint" id="say-hint">🎙 따라 말하기로 점수를 보고, 🔴 녹음해 비교로 원어민과 소리를 맞춰 보십시오.</p>
     <div id="say-list" class="list"></div>
     <div class="scorebox" id="say-score"></div>
     <button class="go" data-goto="talk">대화 연습으로 →</button>
   </section>
 
-  <!-- ④ 대화 -->
+  <!-- ⑤ 대화 -->
   <section class="step" data-step="talk">
     <h2>대화 연습</h2>
     <div class="card talkhead">
@@ -92,15 +109,15 @@
     <button class="go" data-goto="review">복습으로 →</button>
   </section>
 
-  <!-- ⑤ 복습 -->
+  <!-- ⑥ 복습 -->
   <section class="step" data-step="review">
     <h2>복습 <span class="sub">간격반복</span></h2>
-    <p class="hint">예전에 배운 문장입니다. 뜻을 먼저 떠올리고 카드를 누르십시오.</p>
+    <p class="hint">예전에 배운 문장입니다. 뜻을 먼저 떠올리고 소리 내어 말해 보십시오.</p>
     <div id="review-list" class="list"></div>
     <button class="go" data-goto="done">마무리 →</button>
   </section>
 
-  <!-- ⑥ 미션 -->
+  <!-- ⑦ 미션 -->
   <section class="step" data-step="done">
     <h2>오늘의 미션</h2>
     <div class="card">
@@ -109,35 +126,61 @@
     <div class="card summary" id="done-summary"></div>
     <button class="go primary" id="btn-complete">오늘 학습 완료</button>
   </section>
+
+  <!-- 평가 -->
+  <section class="step" data-step="report">
+    <h2>발음 평가 <span class="sub">7회차마다 누적</span></h2>
+    <div id="report-body"></div>
+  </section>
 </main>
 
-<!-- 설정 패널 -->
+<!-- 회차 목록 -->
+<div class="sheet hidden" id="daysheet">
+  <div class="sheet-in">
+    <div class="sheet-head">
+      <h3>회차 바로가기</h3>
+      <button class="iconbtn dark" data-close="daysheet">✕</button>
+    </div>
+    <input type="search" id="day-search" placeholder="회차 번호나 주제로 찾기 (예: 회식, 명함, 12)" autocomplete="off">
+    <div class="daylist" id="daylist"></div>
+  </div>
+</div>
+
+<!-- 설정 -->
 <div class="sheet hidden" id="sheet">
   <div class="sheet-in">
-    <h3>진도 · 설정</h3>
+    <div class="sheet-head">
+      <h3>진도 · 설정</h3>
+      <button class="iconbtn dark" data-close="sheet">✕</button>
+    </div>
     <div class="statgrid" id="statgrid"></div>
-    <h4>회차 이동</h4>
-    <div class="calendar" id="calendar"></div>
+
+    <h4>휴대폰에 앱으로 설치</h4>
+    <div id="install-box"></div>
+
     <h4>기기 간 진도 옮기기</h4>
-    <p class="hint">진도는 이 브라우저에만 저장됩니다. 휴대폰↔PC를 맞추려면 내보내고 불러오십시오.</p>
+    <p class="hint">진도는 이 기기에만 저장됩니다. 휴대폰↔PC를 맞추려면 내보내고 불러오십시오.</p>
     <div class="row">
       <button id="btn-export" class="ghost">진도 내보내기</button>
       <button id="btn-import" class="ghost">진도 불러오기</button>
     </div>
     <textarea id="io-box" class="hidden" spellcheck="false"></textarea>
+
     <h4>말하기 속도</h4>
     <input type="range" id="rate" min="0.5" max="1.1" step="0.05" value="0.8">
     <div class="row"><span id="rate-val" class="hint"></span></div>
-    <button id="sheet-close" class="primary wide">닫기</button>
+
+    <button data-close="sheet" class="primary wide">닫기</button>
   </div>
 </div>
 
 <div class="toast hidden" id="toast"></div>
 
-<script src="js/store.js?v=202608230651"></script>
-<script src="js/speech.js?v=202608230651"></script>
-<script src="js/review.js?v=202608230651"></script>
-<script src="js/record.js?v=202608230651"></script>
-<script src="js/app.js?v=202608230651"></script>
+<script src="js/store.js?v=202608230728"></script>
+<script src="js/speech.js?v=202608230728"></script>
+<script src="js/review.js?v=202608230728"></script>
+<script src="js/record.js?v=202608230728"></script>
+<script src="js/report.js?v=202608230728"></script>
+<script src="js/app.js?v=202608230728"></script>
 </body>
 </html>

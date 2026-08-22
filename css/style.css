@@ -188,3 +188,76 @@ canvas.curve{display:block;width:100%;background:#fff;border:1px solid var(--lin
 .tn{font-size:.75rem;padding:.15rem .45rem;border-radius:6px;background:#F3F4F6;color:var(--dim)}
 .tn.ok{background:#EAF6F0;color:var(--ok);font-weight:600}
 .tn.no{background:#FBEDED;color:var(--bad);font-weight:600}
+
+/* 회차 바로가기 */
+.dayinfo{background:none;border:0;color:inherit;padding:0;text-align:center;width:100%}
+.dayinfo:active{opacity:.7}
+.caret{opacity:.7;font-size:.7rem}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem}
+.sheet-head h3{margin:0}
+.iconbtn.dark{color:var(--ink);font-size:1.1rem}
+#day-search{width:100%;padding:.6rem .8rem;border:1px solid var(--line);border-radius:12px;
+  font-size:.95rem;font-family:inherit;background:#fff;margin-bottom:.6rem}
+.daylist{display:flex;flex-direction:column;gap:.3rem;max-height:56vh;overflow-y:auto;
+  -webkit-overflow-scrolling:touch}
+.dayrow{display:flex;align-items:center;gap:.6rem;width:100%;text-align:left;
+  background:#fff;border:1px solid var(--line);border-radius:12px;padding:.55rem .7rem}
+.dayrow .dnum{flex:none;width:34px;height:34px;border-radius:9px;background:#EEF2F7;color:var(--ink);
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem}
+.dayrow .dtxt{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.dayrow .dtxt b{font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dayrow .dph{font-size:.72rem;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dayrow .dmark{flex:none;font-size:.78rem;color:var(--ok);font-weight:700}
+.dayrow.done{background:#F3FAF6;border-color:#CBE6D8}
+.dayrow.now{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink) inset}
+.dayrow.now .dnum{background:var(--ink);color:#fff}
+.dayrow.future{opacity:.55}
+
+/* 단어 연습 */
+.wordbar{height:8px;background:#EDE9E0;border-radius:99px;overflow:hidden;margin:.2rem 0 .35rem}
+.wordbar-in{height:100%;width:0;background:var(--ink);transition:width .3s}
+.wordbar-txt{font-size:.82rem;color:var(--dim);margin-bottom:.8rem}
+.wordbar-txt b{color:var(--ink)}
+.okmark{color:var(--ok);font-weight:700;margin-left:.3rem}
+.item.word .wtop{display:flex;justify-content:space-between;align-items:flex-start;gap:.6rem}
+.item.word .main{margin-top:0}
+.item.word.done{border-color:var(--ok);background:#F7FCF9}
+.dots{flex:none;display:flex;align-items:center;gap:.22rem;padding-top:.3rem}
+.dot{width:9px;height:9px;border-radius:50%;background:#E2DCD0;display:inline-block}
+.dot.on{background:var(--ok)}
+.dotnum{font-size:.7rem;color:var(--dim);margin-left:.2rem;font-weight:700}
+
+/* 평가 */
+.gradebox{display:flex;align-items:center;gap:.8rem;margin:.6rem 0 .8rem;padding:.7rem;
+  background:#F7FAFD;border-radius:12px;border:1px solid var(--line)}
+.gradebox .gl{flex:none;width:48px;height:48px;border-radius:12px;background:var(--ink);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:800}
+.gradebox b{font-size:1.15rem;color:var(--ink)}
+.trend{display:flex;align-items:flex-end;gap:.4rem;height:130px;margin:.6rem 0 .3rem;
+  padding-bottom:1.2rem;position:relative}
+.tcol{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative}
+.tbar{background:var(--ink);border-radius:6px 6px 0 0;position:relative;min-height:4px}
+.tbar span{position:absolute;top:-1.05rem;left:0;right:0;text-align:center;
+  font-size:.7rem;color:var(--ink);font-weight:700}
+.tlab{position:absolute;bottom:-1.15rem;left:0;right:0;text-align:center;font-size:.65rem;color:var(--dim)}
+.srow2{display:flex;align-items:center;gap:.5rem;padding:.35rem 0}
+.srow2 .sk{flex:0 0 42%;font-size:.82rem}
+.srow2 b{font-size:.82rem;width:38px;text-align:right}
+.srow2 .num{font-size:.7rem}
+.mini{flex:1;height:7px;background:#EDE9E0;border-radius:99px;overflow:hidden}
+.mini-in{height:100%;background:var(--ink)}
+.mini-in.ok{background:var(--ok)} .mini-in.mid{background:var(--warn)} .mini-in.bad{background:var(--bad)}
+b.ok{color:var(--ok)} b.mid{color:var(--warn)} b.bad{color:var(--bad)}
+.chips{display:flex;flex-wrap:wrap;gap:.35rem}
+.chip{font-size:.82rem;padding:.25rem .6rem;border-radius:99px;background:#F3F4F6;color:var(--dim)}
+.chip.ok{background:#EAF6F0;color:var(--ok)}
+.list.tight{gap:.5rem;margin-bottom:0}
+.item.small .main{font-size:1.2rem}
+.item[data-lang="zh"].small .main{font-size:1.35rem}
+.steps-list{margin:.3rem 0 .3rem 1.1rem;padding:0;font-size:.9rem;line-height:1.75}
+
+/* 본문 조각 — 눌러서 그 단어만 듣기 */
+.tk{cursor:pointer;border-radius:5px;padding:0 1px;transition:background .15s}
+.tk:hover{background:#F1EFE9}
+.tk:active,.tk.hit{background:#F6E3D8;color:var(--brick)}
+.turn.me .tk:active,.turn.me .tk.hit{background:rgba(255,255,255,.22);color:#fff}

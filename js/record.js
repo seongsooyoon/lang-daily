@@ -143,6 +143,48 @@
   };
   var VOWEL = /[aeiouüvāēīōūǖáéíóúǘǎěǐǒǔǚàèìòùǜ]/i;
 
+  // 중국어 성모(음절 첫 자음). 긴 것부터 봐야 zh/ch/sh 를 z/c/s 로 잘못 읽지 않는다.
+  var INITIALS = ['zh', 'ch', 'sh', 'b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h',
+                  'j', 'q', 'x', 'r', 'z', 'c', 's', 'y', 'w'];
+
+  // 병음을 음절 단위로 끊는다. "Qǐngwèn, zhège" → ["Qǐng","wèn","zhè","ge"]
+  // 한자 한 글자 = 한 음절이므로, 글자를 눌렀을 때 그 음절의 병음을 짚어 줄 수 있다.
+  Rec.pinyinSplit = function (pinyin) {
+    var s = String(pinyin || '');
+    if (!s) return [];
+    var cl = [], i = 0;
+    while (i < s.length) {
+      if (VOWEL.test(s[i])) {
+        var st = i;
+        while (i + 1 < s.length && VOWEL.test(s[i + 1])) i++;
+        cl.push({ s: st, e: i });
+      }
+      i++;
+    }
+    if (!cl.length) return [s.trim()].filter(Boolean);
+
+    var starts = [0];
+    for (var k = 1; k < cl.length; k++) {
+      var runEnd = cl[k].s, j = runEnd - 1, tail = '';
+      // 모음 바로 앞에 붙어 있는 자음들만 본다(공백·쉼표를 만나면 멈춘다)
+      while (j > cl[k - 1].e && /[a-zü]/i.test(s[j])) { tail = s[j].toLowerCase() + tail; j--; }
+      var ini = '';
+      for (var m = 0; m < INITIALS.length; m++) {
+        var c = INITIALS[m];
+        if (tail.length >= c.length && tail.slice(-c.length) === c && c.length > ini.length) ini = c;
+      }
+      starts.push(runEnd - ini.length);
+    }
+    var out = [];
+    for (var q = 0; q < starts.length; q++) {
+      var en = (q + 1 < starts.length) ? starts[q + 1] : s.length;
+      var piece = s.slice(starts[q], en).replace(/^[^A-Za-züÀ-ǿ]+/, '')
+                                        .replace(/[^A-Za-züÀ-ǿ]+$/, '');
+      if (piece) out.push(piece);
+    }
+    return out;
+  };
+
   // 병음에서 음절별 성조를 뽑는다. 성조 부호가 없으면 경성(0).
   Rec.tones = function (pinyin) {
     var s = String(pinyin || '').replace(/[^A-Za-zāēīōūǖáéíóúǘǎěǐǒǔǚàèìòùǜüv]/g, ' ');

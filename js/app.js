@@ -2,6 +2,14 @@
 (function (w, d) {
   'use strict';
 
+  // 배포 스탬프를 자기 script 태그에서 읽어 학습자료·문서에도 붙인다.
+  // 이게 없으면 새 회차를 올려도 휴대폰이 옛 data/*.json 을 계속 물고 있다.
+  var VER = (function () {
+    var el = d.querySelector('script[src*="app.js"]');
+    var m = el && el.getAttribute('src').match(/[?&]v=([^&]+)/);
+    return m ? m[1] : 'dev';
+  })();
+
   var DATA = {};                 // { zh: {...}, en: {...} }
   var MOTIVE = null;             // 동기 문구 (심리학 근거 포함)
   var BOSTON = null;             // 보스턴 발음 진단 세트
@@ -1059,6 +1067,74 @@
     try { w.localStorage.setItem(COVER_KEY, w.Store.todayStr()); } catch (e) {}
   }
 
+  /* ---------------- 계정 서버 연결 ----------------
+   * 서버 계정 가입은 대표님이 직접 하셔야 한다(가입·비밀번호는 내가 대신하지 않는다).
+   * 그 대신, 가입 뒤 복사해 온 값 두 개를 여기에 붙여넣기만 하면 바로 켜지도록 만들었다.
+   */
+
+  function serverStateHTML() {
+    var A = w.Auth;
+    if (A.enabled && A.user) {
+      return '<div class="svst ok">연결됨 · ' + esc(A.displayName()) +
+             (A.isAdmin() ? ' (관리자)' : '') + '</div>';
+    }
+    if (A.enabled) {
+      return '<div class="svst ok">서버 연결됨 — 👤 에서 가입·로그인하시면 됩니다' +
+             (A.fromLocal ? ' <span class="svtag">이 기기에만 저장된 설정</span>' : '') + '</div>';
+    }
+    return '<div class="svst off">지금은 <b>혼자 쓰기</b>입니다. 링크를 나눠 주면 각자 자기 기기에서 쓸 수 있지만, ' +
+           '<b>관리자 승인</b>과 <b>친구 순위</b>는 서버가 있어야 합니다.</div>';
+  }
+
+  function renderServer() {
+    var A = w.Auth;
+    var h = serverStateHTML();
+
+    h += '<ol class="svsteps">';
+    h += '<li><b>supabase.com</b> 에서 가입하고 프로젝트를 하나 만듭니다 <span>(무료 · 지역은 Seoul)</span>' +
+         '<div class="row"><button class="ghost" id="sv-open">supabase.com 열기</button></div></li>';
+    h += '<li><b>SQL Editor</b> 에 표 만들기 SQL 을 붙여넣고 Run 합니다' +
+         '<div class="row"><button class="ghost" id="sv-copysql">SQL 복사</button>' +
+         '<button class="ghost" id="sv-showsql">SQL 보기</button></div>' +
+         '<textarea id="sv-sql" class="hidden" readonly spellcheck="false"></textarea></li>';
+    h += '<li><b>Authentication → Providers → Email</b> 에서 <b>Confirm email 끄기</b>' +
+         '<span>아이디만으로 로그인하려면 꼭 꺼야 합니다</span></li>';
+    h += '<li><b>Project Settings → API</b> 의 두 값을 아래에 붙여넣습니다</li>';
+    h += '</ol>';
+
+    var cfg0 = (A.cfg || {});
+    h += '<label class="fl">Project URL</label>';
+    h += '<input id="sv-url" type="url" spellcheck="false" placeholder="https://xxxxxxxx.supabase.co" value="' +
+         esc(cfg0.supabaseUrl || '') + '">';
+    h += '<label class="fl">anon (공개) key</label>';
+    h += '<input id="sv-key" type="text" spellcheck="false" placeholder="sb_publishable_... 또는 eyJ..." value="' +
+         esc(cfg0.supabaseKey || '') + '">';
+    h += '<div class="row"><button class="primary" id="sv-save">저장하고 연결</button>';
+    if (A.fromLocal) h += '<button class="ghost" id="sv-clear">연결 해제</button>';
+    h += '</div>';
+    h += '<div class="row"><button class="ghost" id="sv-test">연결 확인</button></div>';
+    h += '<div id="sv-msg" class="authmsg"></div>';
+    h += '<p class="hint">anon 키는 <b>공개돼도 되는 키</b>입니다. 실제 접근 통제는 서버 쪽 보안 규칙(RLS)이 맡습니다. ' +
+         '비밀번호는 여기에 넣지 마십시오 — 가입 화면에서 직접 입력하시면 됩니다.</p>';
+    h += '<p class="hint">여기 저장한 설정은 <b>이 기기에만</b> 적용됩니다. 잘 되는 것을 확인하신 뒤 두 값을 알려 주시면 ' +
+         '배포본(config.js)에 넣어 모든 사람에게 적용해 드리겠습니다.</p>';
+
+    $('#server-box').innerHTML = h;
+  }
+
+  function loadSchemaSql() {
+    return fetch('supabase/schema.sql?v=' + VER).then(function (r) {
+      return r.ok ? r.text() : null;
+    }).catch(function () { return null; });
+  }
+
+  function serverMsg(text, bad) {
+    var el = $('#sv-msg');
+    if (!el) return;
+    el.className = 'authmsg' + (bad ? ' no' : ' ok');
+    el.textContent = text;
+  }
+
   function renderAll() {
     renderHeader(); renderLvBar(); renderMotive(); renderBrief(); renderWords(); renderLearn();
     renderSay(); renderTalk(); renderReview(); renderDone();
@@ -1455,6 +1531,7 @@
       '<div class="stat"><b>' + doneN + '</b><span>완료 회차</span></div>' +
       '<div class="stat"><b>' + w.Store.streak() + '</b><span>연속 학습일</span></div>' +
       '<div class="stat"><b>' + (avg == null ? '–' : avg) + '</b><span>발음 평균</span></div>';
+    renderServer();
     $('#install-box').innerHTML = installHTML();
     $('#in-why').value = w.Store.why();
     $('#in-plan').value = w.Store.plan();
@@ -1551,6 +1628,43 @@
           break;
         case 'btn-admin': renderAdmin(); $('#adminsheet').classList.remove('hidden'); break;
         case 'btn-cover': closeSheet('sheet'); showCover(); break;
+        case 'sv-open': w.open('https://supabase.com', '_blank', 'noopener'); break;
+        case 'sv-showsql':
+          loadSchemaSql().then(function (sql) {
+            var ta = $('#sv-sql');
+            ta.value = sql || '(schema.sql 을 불러오지 못했습니다)';
+            ta.classList.toggle('hidden');
+          });
+          break;
+        case 'sv-copysql':
+          loadSchemaSql().then(function (sql) {
+            if (!sql) { serverMsg('SQL 을 불러오지 못했습니다.', true); return; }
+            var ta = $('#sv-sql');
+            ta.classList.remove('hidden'); ta.value = sql; ta.select();
+            var ok = false;
+            try { ok = d.execCommand('copy'); } catch (e) {}
+            serverMsg(ok ? 'SQL 을 복사했습니다. Supabase SQL Editor 에 붙여넣고 Run 하십시오.'
+                         : '복사하지 못했습니다. 아래 글상자에서 직접 복사해 주십시오.', !ok);
+          });
+          break;
+        case 'sv-save': {
+          var r0 = w.Auth.saveConfig($('#sv-url').value, $('#sv-key').value);
+          if (!r0.ok) { serverMsg(r0.msg, true); break; }
+          serverMsg('저장했습니다. 화면을 새로 불러옵니다…');
+          setTimeout(function () { w.location.reload(); }, 900);
+          break;
+        }
+        case 'sv-clear':
+          w.Auth.clearConfig();
+          serverMsg('연결을 해제했습니다. 화면을 새로 불러옵니다…');
+          setTimeout(function () { w.location.reload(); }, 900);
+          break;
+        case 'sv-test':
+          serverMsg('확인하는 중…');
+          w.Auth.diagnose().then(function (r) {
+            serverMsg(r.msg, r.step !== 'ok');
+          });
+          break;
         case 'btn-menu': openSheet(); break;
         case 'btn-setwhy': openSheet(); setTimeout(function () { $('#in-why').focus(); }, 250); break;
         case 'talk-start':
@@ -1669,14 +1783,6 @@
       '</p><p class="tip">인터넷 연결을 확인하고 새로고침해 주십시오.</p></div>';
   }
 
-  // 배포 스탬프를 자기 script 태그에서 읽어 학습자료에도 붙인다.
-  // 이게 없으면 새 회차를 올려도 휴대폰이 옛 data/*.json 을 계속 물고 있다.
-  var VER = 'dev';
-  (function () {
-    var el = d.querySelector('script[src*="app.js"]');
-    var m = el && el.getAttribute('src').match(/[?&]v=([^&]+)/);
-    if (m) VER = m[1];
-  })();
 
   function loadJSON(path) {
     return fetch(path + '?v=' + VER)

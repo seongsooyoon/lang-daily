@@ -11,7 +11,23 @@
 (function (w) {
   'use strict';
 
-  var CFG = w.LANG_CONFIG || {};
+  // 설정은 두 곳에서 온다.
+  //  1) config.js — 배포본에 박아 두는 값(모든 사람에게 적용)
+  //  2) 이 기기에 저장한 값 — 대표님이 앱 안 화면에서 붙여넣은 값(먼저 적용)
+  // 2번을 둔 이유: 제가 대표님 대신 서버 계정을 만들 수 없어서, 키만 받으면
+  // 코드를 고치지 않고도 바로 켜 볼 수 있게 하기 위해서다.
+  var LOCAL_KEY = 'langdaily.server';
+
+  function localCfg() {
+    try {
+      var raw = w.localStorage.getItem(LOCAL_KEY);
+      if (!raw) return null;
+      var o = JSON.parse(raw);
+      return (o && o.supabaseUrl && o.supabaseKey) ? o : null;
+    } catch (e) { return null; }
+  }
+
+  var CFG = localCfg() || w.LANG_CONFIG || {};
   var DOMAIN = 'lang-daily.local';          // 아이디를 이메일 꼴로 바꿀 때 붙이는 내부 도메인
   var SDK = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
 
@@ -21,6 +37,60 @@
     user: null,
     profile: null,
     ready: false,
+
+    LOCAL_KEY: LOCAL_KEY,
+    fromLocal: !!localCfg(),
+    cfg: CFG,
+
+    // 이 기기에 서버 설정을 저장한다(붙여넣기로 켜 보기용)
+    saveConfig: function (url, key) {
+      var u = String(url || '').trim().replace(/\/+$/, '');
+      var k = String(key || '').trim();
+      if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(u)) {
+        return { ok: false, msg: '주소 형식이 다릅니다. https://xxxx.supabase.co 꼴이어야 합니다.' };
+      }
+      if (k.length < 20) return { ok: false, msg: '키가 너무 짧습니다. anon(공개) 키를 그대로 붙여넣어 주십시오.' };
+      try {
+        w.localStorage.setItem(LOCAL_KEY, JSON.stringify({ supabaseUrl: u, supabaseKey: k }));
+      } catch (e) { return { ok: false, msg: '이 브라우저에 저장하지 못했습니다.' }; }
+      return { ok: true };
+    },
+
+    clearConfig: function () {
+      try { w.localStorage.removeItem(LOCAL_KEY); } catch (e) {}
+    },
+
+    // 서버가 살아 있는지, 표가 깔렸는지 실제로 확인한다
+    diagnose: function () {
+      var self = this;
+      if (!this.enabled) return Promise.resolve({ step: 'config', msg: '아직 서버 주소·키가 없습니다.' });
+      return this._loadSdk()
+        .then(function () {
+          if (!self.sb) self.sb = w.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey);
+          return self.sb.from('profiles').select('id').limit(1);
+        })
+        .then(function (r) {
+          if (r.error) {
+            var m = r.error.message || '';
+            if (/relation .* does not exist|schema cache|Could not find the table/i.test(m)) {
+              return { step: 'schema', msg: '서버에는 닿았지만 표가 없습니다. SQL 편집기에 schema.sql 을 실행해 주십시오.' };
+            }
+            if (/JWT|Invalid API key|apikey|401|403/i.test(m)) {
+              return { step: 'key', msg: '키가 맞지 않습니다. anon(공개) 키를 다시 확인해 주십시오.' };
+            }
+            // 없는 주소면 fetch 자체가 실패한다. 이걸 '정상'으로 넘기면 안 된다.
+            if (/Failed to fetch|NetworkError|TypeError|ERR_/i.test(m)) {
+              return { step: 'net', msg: '그 주소의 서버에 닿지 못했습니다. Project URL 을 다시 확인해 주십시오.' };
+            }
+            // 로그인 전에는 행이 안 보이는 것이 정상(RLS)
+            return { step: 'ok', msg: '서버와 표가 준비됐습니다. 이제 가입하시면 됩니다.' };
+          }
+          return { step: 'ok', msg: '서버와 표가 준비됐습니다. 이제 가입하시면 됩니다.' };
+        })
+        .catch(function (e) {
+          return { step: 'net', msg: '서버에 닿지 못했습니다. 주소를 확인하고 인터넷 연결을 봐 주십시오.' };
+        });
+    },
 
     // 아이디 → 내부 이메일. 대표님은 'coqss1' 만 치면 된다.
     toEmail: function (id) {

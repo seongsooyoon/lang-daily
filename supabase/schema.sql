@@ -53,12 +53,22 @@ $$;
 
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  first_user boolean;
 begin
-  insert into public.profiles (id, email, name)
+  -- 맨 처음 가입한 사람은 관리자로 만들고 바로 승인한다.
+  -- (그래야 관리자를 만들려고 SQL 을 또 실행하지 않아도 된다)
+  -- ⚠️ 그러므로 이 표를 만든 뒤 **대표님이 가장 먼저** 가입하셔야 합니다.
+  select not exists (select 1 from public.profiles) into first_user;
+
+  insert into public.profiles (id, email, name, role, status, approved_at)
   values (
     new.id,
     new.email,
-    coalesce(nullif(new.raw_user_meta_data->>'name', ''), split_part(new.email, '@', 1))
+    coalesce(nullif(new.raw_user_meta_data->>'name', ''), split_part(new.email, '@', 1)),
+    case when first_user then 'admin'  else 'member'  end,
+    case when first_user then 'approved' else 'pending' end,
+    case when first_user then now() else null end
   )
   on conflict (id) do nothing;
   return new;
@@ -134,10 +144,17 @@ with (security_invoker = on) as
   where p.status = 'approved';
 
 -- =========================================================
--- 6. 관리자 지정 — 아래 이메일을 대표님 계정으로 바꿔 한 번 실행하십시오.
---    (먼저 앱에서 그 이메일로 가입한 뒤에 실행해야 합니다)
+-- 6. 관리자
+--    맨 처음 가입한 사람이 자동으로 관리자가 됩니다(위 트리거).
+--    그러니 이 SQL 을 실행한 뒤 **대표님이 가장 먼저** 앱에서 가입하십시오.
+--
+--    혹시 다른 사람이 먼저 가입해 버렸다면, 아래 한 줄로 바로잡을 수 있습니다.
+--    (아이디가 coqss1 이면 이메일은 coqss1@lang-daily.local 입니다)
 -- =========================================================
 
 -- update public.profiles
 --    set role = 'admin', status = 'approved', approved_at = now()
---  where email = 'coqss2@gmail.com';
+--  where email = 'coqss1@lang-daily.local';
+
+-- 지금 누가 관리자인지 보려면:
+-- select name, email, role, status, created_at from public.profiles order by created_at;

@@ -150,8 +150,15 @@
         options: { data: { name: name || id } }
       }).then(function (r) {
         if (r.error) throw r.error;
-        // 이메일 확인을 끈 프로젝트에서는 곧바로 세션이 생긴다
+        // 이메일 확인을 끈 프로젝트에서는 곧바로 세션이 생긴다.
+        // 세션이 없다면 'Confirm email' 이 켜져 있다는 뜻 — 아이디 로그인이 막히므로 바로 알려 준다.
+        var hasSession = !!(r.data && r.data.session);
         if (r.data && r.data.user) self.user = r.data.user;
+        if (!hasSession) {
+          var e = new Error('confirm-email-on');
+          e.code = 'confirm-email-on';
+          throw e;
+        }
         return self.loadProfile();
       });
     },
@@ -196,6 +203,10 @@
     },
 
     errorText: function (e) {
+      if (e && e.code === 'confirm-email-on') {
+        return '계정은 만들어졌지만 로그인이 열리지 않았습니다. Supabase → Authentication → ' +
+               'Sign In / Providers → Email 에서 "Confirm email" 을 끄고, 로그인 탭에서 다시 들어와 주십시오.';
+      }
       var m = (e && (e.message || e.error_description)) || '';
       if (/Invalid login credentials/i.test(m)) return '아이디나 비밀번호가 맞지 않습니다.';
       if (/already registered|already exists/i.test(m)) return '이미 있는 아이디입니다. 로그인해 주십시오.';

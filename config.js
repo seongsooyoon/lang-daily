@@ -7,8 +7,8 @@
  * 실제 접근 통제는 Supabase 쪽 행 수준 보안(RLS)이 맡습니다.
  */
 window.LANG_CONFIG = {
-  supabaseUrl: '',      // 예: https://abcdefgh.supabase.co
-  supabaseKey: '',      // 예: sb_publishable_... (anon / publishable key)
+  supabaseUrl: 'https://tbljuqfcnzvwfwwzjxhn.supabase.co',
+  supabaseKey: 'sb_publishable_oIH3VcNe9SbPppklmKWAww_aoxNsQ0p',   // 공개용(publishable) 키. 비밀키는 절대 넣지 않는다.
 
   // 계정을 쓰더라도 학습 자체는 인터넷 없이 되게 한다(진도는 나중에 올린다)
   offlineFirst: true

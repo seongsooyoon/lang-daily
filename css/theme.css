@@ -327,7 +327,7 @@ main { padding-top: 1.15rem; }
 .ft-maker { display: flex; flex-direction: column; gap: .1rem; }
 .ft-ko { font-family: var(--serif); font-size: .95rem; font-weight: 700; letter-spacing: .04em; }
 .ft-en { font-size: .58rem; opacity: .5; letter-spacing: .16em; }
-.ft-sub { font-size: .62rem; opacity: .42; margin-top: .35rem; letter-spacing: .08em; }
+.ft-sub { font-family: var(--serif); font-size: .74rem; opacity: .62; margin-top: .25rem; letter-spacing: .06em; }
 
 @media (max-height: 680px) {
   .cover-title { font-size: 1.5rem; }

@@ -1,0 +1,251 @@
+/* 시각 디자인 — 인쇄물 결
+ *
+ * 고친 이유: 흰 카드가 같은 간격으로 반복되고 색이 한 가지뿐이라 화면이 밋밋했다.
+ * 방향
+ *   1) 바탕에 종이 결(미세한 노이즈)과 번짐(라디얼 그라디언트)을 깔아 평면을 없앤다
+ *   2) 언어마다 색을 바꾼다 — 중국어는 먹과 주사(朱砂), 영어는 잉크블루와 놋쇠
+ *   3) 카드를 다 같게 만들지 않는다. 어떤 것은 색지, 어떤 것은 테두리만, 어떤 것은 배경 없이
+ *   4) 제목에 명조 계열을 섞어 인쇄물처럼 보이게 한다
+ *   5) 여백을 일부러 어긋나게 준다
+ */
+
+/* ---------- 언어별 색 ---------- */
+
+:root {
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.045'/%3E%3C/svg%3E");
+  --serif: "Nanum Myeongjo", "AppleMyungjo", "Batang", "바탕", Georgia, serif;
+}
+
+html[data-lang="zh"], body[data-lang="zh"] {
+  --ink: #26221F;          /* 먹 */
+  --ink-2: #5A4B3C;
+  --brick: #B3392B;        /* 주사 */
+  --accent2: #C39A45;      /* 금박 */
+  --paper: #F6F1E6;
+  --card: #FDFBF6;
+  --line: #E3D9C6;
+  --wash1: rgba(179, 57, 43, .09);
+  --wash2: rgba(195, 154, 69, .11);
+}
+
+html[data-lang="en"], body[data-lang="en"] {
+  --ink: #1B3554;          /* 잉크블루 */
+  --ink-2: #2C5282;
+  --brick: #B0603A;        /* 놋쇠 */
+  --accent2: #2C6E75;      /* 청록 */
+  --paper: #F1F2ED;
+  --card: #FFFFFF;
+  --line: #DDDFD6;
+  --wash1: rgba(27, 53, 84, .09);
+  --wash2: rgba(44, 110, 117, .10);
+}
+
+/* ---------- 바탕 ---------- */
+
+html[data-lang] {                          /* 바탕은 문서 뿌리가 칠한다 — 캔버스 전파로 헷갈리지 않게 */
+  background:
+    radial-gradient(1100px 460px at 12% -8%, var(--wash1), transparent 62%),
+    radial-gradient(880px 420px at 108% 14%, var(--wash2), transparent 60%),
+    radial-gradient(700px 500px at 50% 118%, var(--wash1), transparent 65%),
+    var(--grain),
+    var(--paper);
+  background-color: var(--paper);          /* 겹층 뒤에 깔리는 바탕. 따로 줘야 확실히 칠해진다 */
+  background-attachment: fixed;
+  transition: background-color .35s ease;
+  min-height: 100%;
+}
+html[data-lang] body { background: none; }  /* 바탕은 html 한 곳에서만 그린다 */
+
+/* ---------- 머리 ---------- */
+
+.top {
+  background:
+    radial-gradient(600px 200px at 85% -40%, rgba(255, 255, 255, .16), transparent 70%),
+    linear-gradient(165deg, var(--ink), color-mix(in srgb, var(--ink) 72%, #000) 100%);
+  border-bottom: 3px solid var(--brick);
+}
+.topright { display: flex; align-items: center; gap: .1rem; }
+.langtab.on { background: var(--paper); color: var(--ink); }
+.dayline strong { font-family: var(--serif); letter-spacing: 0; }
+
+/* ---------- 제목·본문 결 ---------- */
+
+h2 {
+  font-family: var(--serif);
+  font-size: 1.28rem;
+  letter-spacing: -.01em;
+  position: relative;
+  padding-bottom: .35rem;
+  margin-bottom: .9rem;
+}
+h2::after {                      /* 손으로 그은 듯한 밑줄 */
+  content: "";
+  position: absolute; left: 0; bottom: 0;
+  width: 46px; height: 3px; border-radius: 2px;
+  background: var(--brick);
+  opacity: .85;
+}
+h2 .sub { font-family: inherit; }
+h3 { font-family: var(--serif); font-size: 1.08rem; }
+
+/* ---------- 카드를 다 같게 만들지 않는다 ---------- */
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px 16px 16px 4px;              /* 한 귀만 각지게 — 종이 접힌 느낌 */
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .03), 0 10px 24px -14px rgba(0, 0, 0, .22);
+}
+.card + .card { margin-top: .9rem; }
+
+/* 브리핑은 색지 위에 */
+.step[data-step="brief"] .brief {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--card) 88%, var(--brick)) 0%, var(--card) 46%);
+  border-left: 4px solid var(--brick);
+  border-radius: 4px 16px 16px 4px;
+}
+
+/* 문장 카드 — 번호를 도장처럼 */
+.item { border-radius: 14px 14px 14px 4px; position: relative; }
+.item .num {
+  display: inline-block;
+  background: color-mix(in srgb, var(--brick) 12%, transparent);
+  color: var(--brick);
+  border-radius: 5px;
+  padding: .08rem .42rem;
+  letter-spacing: .02em;
+}
+.item .main { font-family: var(--serif); }
+.item[data-lang="zh"] .main { font-family: "Noto Serif SC", var(--serif); }
+
+/* 단어 카드는 배경을 살짝 다르게 */
+.item.word { background: linear-gradient(180deg, var(--card), color-mix(in srgb, var(--card) 92%, var(--paper))); }
+.item.word.done {
+  background: linear-gradient(180deg, #F5FBF7, #FFF);
+  border-color: var(--ok);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .03), 0 10px 24px -16px rgba(47, 125, 91, .5);
+}
+
+/* ---------- 단계 네비 ---------- */
+
+.steps {
+  background: linear-gradient(180deg, var(--paper) 62%, transparent);
+  backdrop-filter: blur(4px);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+.steps button { border-radius: 8px; font-family: var(--serif); }
+.steps button.on { box-shadow: 0 4px 12px -6px var(--ink); }
+
+/* ---------- 버튼 ---------- */
+
+.go { border-radius: 12px 12px 12px 4px; letter-spacing: -.01em; }
+.go.primary, button.primary {
+  background: linear-gradient(180deg, var(--ink), color-mix(in srgb, var(--ink) 84%, #000));
+  border-color: var(--ink);
+  box-shadow: 0 8px 18px -12px var(--ink);
+}
+.micbtn {
+  background: linear-gradient(180deg, var(--brick), color-mix(in srgb, var(--brick) 84%, #000));
+  box-shadow: 0 6px 14px -10px var(--brick);
+}
+.playbtn { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); }
+
+/* ---------- 동기 카드 ---------- */
+
+.mv {
+  background:
+    radial-gradient(420px 160px at 92% -30%, rgba(255, 255, 255, .14), transparent 70%),
+    linear-gradient(160deg, var(--ink), color-mix(in srgb, var(--ink) 74%, #000));
+  border-radius: 18px 18px 18px 5px;
+  position: relative;
+  overflow: hidden;
+}
+.mv::before {                       /* 왼쪽 위 인장 자국 */
+  content: "";
+  position: absolute; top: -26px; left: -26px;
+  width: 92px; height: 92px; border-radius: 50%;
+  border: 10px solid var(--brick); opacity: .22;
+}
+.mv-line { font-family: var(--serif); font-size: 1.08rem; }
+
+/* ---------- 레벨 눈금 ---------- */
+
+.lvbar .lv { background: var(--brick); }
+.lvnum {
+  background: linear-gradient(160deg, var(--ink), color-mix(in srgb, var(--ink) 72%, #000));
+  border-radius: 16px 16px 16px 5px;
+  font-family: var(--serif);
+}
+
+/* ---------- 계정·순위 ---------- */
+
+.authtabs { display: flex; gap: .35rem; margin-bottom: .8rem; }
+.authtab {
+  flex: 1; padding: .5rem; border-radius: 10px; font-size: .9rem; font-weight: 600;
+  background: #fff; border: 1px solid var(--line); color: var(--dim);
+}
+.authtab.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.fl { display: block; font-size: .78rem; color: var(--dim); margin: .7rem 0 .25rem; }
+#authsheet input, #adminsheet input {
+  width: 100%; padding: .62rem .75rem; border: 1px solid var(--line); border-radius: 10px;
+  font-family: inherit; font-size: 1rem; background: #fff;
+}
+.authmsg { font-size: .85rem; margin-top: .5rem; }
+.authmsg.no { color: var(--bad); }
+.acct {
+  background: linear-gradient(160deg, var(--ink), color-mix(in srgb, var(--ink) 76%, #000));
+  color: #fff; border-radius: 16px 16px 16px 5px; padding: .9rem 1rem; margin-bottom: .8rem;
+}
+.acct-name { font-family: var(--serif); font-size: 1.15rem; font-weight: 700; }
+.acct-id { font-size: .8rem; opacity: .7; margin-top: .1rem; }
+.acct-st {
+  display: inline-block; margin-top: .55rem; font-size: .78rem; font-weight: 700;
+  border-radius: 999px; padding: .12rem .6rem; background: rgba(255, 255, 255, .18);
+}
+.acct-st.ok { background: #2F7D5B; }
+.acct-st.wait { background: var(--brick); }
+.acct-st.no { background: #B03A3A; }
+
+.urow {
+  display: flex; align-items: center; gap: .5rem; padding: .55rem 0;
+  border-bottom: 1px dashed var(--line);
+}
+.uinfo { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.uinfo b { font-size: .92rem; }
+.uinfo span { font-size: .72rem; color: var(--dim); }
+.ust { font-size: .72rem; font-weight: 700; border-radius: 999px; padding: .08rem .5rem; }
+.ust.ok { background: #EAF6F0; color: var(--ok); }
+.ust.wait { background: #FDF4EC; color: var(--brick); }
+.ust.no { background: #FBEDED; color: var(--bad); }
+.uact { display: flex; gap: .25rem; }
+.uact .ghost { padding: .3rem .55rem; font-size: .78rem; }
+
+.rrow {
+  display: flex; align-items: center; gap: .55rem; padding: .45rem 0;
+  border-bottom: 1px dashed var(--line); font-size: .9rem;
+}
+.rrow:last-child { border: 0; }
+.rno {
+  flex: none; width: 24px; height: 24px; border-radius: 7px; background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink); display: flex; align-items: center; justify-content: center;
+  font-size: .78rem; font-weight: 800;
+}
+.rrow:nth-child(2) .rno { background: var(--accent2); color: #fff; }
+.rname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rxp { font-weight: 700; color: var(--ink); }
+.rst { font-size: .8rem; color: var(--dim); }
+.rrow.me { background: color-mix(in srgb, var(--brick) 7%, transparent); border-radius: 8px; padding-left: .35rem; padding-right: .35rem; }
+.rrow.me .rname { font-weight: 700; color: var(--brick); }
+
+/* ---------- 여백 리듬을 어긋나게 ---------- */
+
+main { padding-top: 1.15rem; }
+.list { gap: .8rem; }
+.step[data-step="words"] .list { gap: .65rem; }
+.card h3 + .tip { margin-top: .2rem; }
+
+@media (min-width: 640px) {
+  main { max-width: 680px; }
+  h2 { font-size: 1.45rem; }
+}

@@ -50,6 +50,10 @@
 
   function renderHeader() {
     var c = cfg(), dd = dayData();
+    d.body.dataset.lang = lang;                    // 언어에 따라 화면 색이 바뀐다(css/theme.css)
+    d.documentElement.dataset.lang = lang;         // 바탕을 칠하는 것은 html 쪽
+    var tc = d.querySelector('meta[name="theme-color"]');
+    if (tc) tc.setAttribute('content', lang === 'zh' ? '#26221F' : '#1B3554');
     $('#day-n').textContent = 'Day ' + day;
     $('#day-total').textContent = '/ ' + c.meta.days;
     $('#day-phase').textContent = dd.phase;
@@ -645,7 +649,7 @@
   // 점수를 주고, 화면 위 눈금과 오늘 몫을 함께 갱신한다
   function gain(key, times) {
     var got = w.Game.add(lang, key, times);
-    if (got) { renderLvBar(); }
+    if (got) { renderLvBar(); syncSoon(); }
     return got;
   }
 
@@ -715,11 +719,213 @@
          '무작위 보상이나 요란한 연출은 일부러 넣지 않았습니다.</p></div>';
 
     $('#trophy-body').innerHTML = h;
+    renderRanking($('#trophy-body'));
 
     if (bd.fresh.length) {
       var b0 = w.Game.badgeOf(bd.fresh[0]);
       if (b0) toast(b0.icon + ' 배지 획득 — ' + b0.name, 3600);
     }
+  }
+
+  /* ---------------- 계정 (로그인·승인·랭킹) ---------------- */
+
+  var syncTimer = null;
+
+  function authOn() { return w.Auth && w.Auth.enabled; }
+
+  function renderAccountBtn() {
+    var b = $('#btn-account');
+    b.classList.remove('hidden');
+    if (!authOn()) { b.textContent = '👤'; b.title = '계정 (아직 혼자 쓰기)'; return; }
+    if (w.Auth.user) {
+      b.textContent = w.Auth.isApproved() ? '👤' : '⏳';
+      b.title = w.Auth.displayName() + (w.Auth.isApproved() ? '' : ' (승인 대기)');
+    } else {
+      b.textContent = '👤';
+      b.title = '로그인';
+    }
+  }
+
+  function authFormHTML(mode) {
+    var h = '';
+    h += '<div class="authtabs">';
+    h += '<button class="authtab' + (mode === 'in' ? ' on' : '') + '" data-authmode="in">로그인</button>';
+    h += '<button class="authtab' + (mode === 'up' ? ' on' : '') + '" data-authmode="up">새로 가입</button>';
+    h += '</div>';
+    h += '<label class="fl">아이디</label>';
+    h += '<input id="au-id" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="영문·숫자 (예: coqss1)">';
+    if (mode === 'up') {
+      h += '<label class="fl">이름 (화면에 보일 이름)</label>';
+      h += '<input id="au-name" type="text" placeholder="예: 제임스 윤">';
+    }
+    h += '<label class="fl">비밀번호</label>';
+    h += '<input id="au-pw" type="password" autocomplete="' + (mode === 'up' ? 'new-password' : 'current-password') + '" placeholder="6자 이상">';
+    h += '<button class="go primary" id="au-go">' + (mode === 'up' ? '가입 신청' : '로그인') + '</button>';
+    h += '<div id="au-msg" class="authmsg"></div>';
+    if (mode === 'up') {
+      h += '<p class="hint">가입하면 <b>관리자 승인</b>을 기다립니다. 승인 전에는 학습 화면이 열리지 않습니다.</p>';
+    }
+    h += '<p class="hint">비밀번호는 이 앱이 보관하지 않습니다. 계정 서버가 암호화해 저장하며 저희도 볼 수 없습니다.</p>';
+    return h;
+  }
+
+  function renderAuth(mode) {
+    var box = $('#auth-body');
+    if (!authOn()) {
+      $('#auth-title').textContent = '혼자 쓰기';
+      box.innerHTML = '<p class="tip">지금은 계정 없이 이 기기에만 저장하는 방식으로 돌고 있습니다. ' +
+        '여러 사람이 쓰시려면 계정 서버를 연결해야 합니다(SETUP.md 참고).</p>';
+      return;
+    }
+    if (w.Auth.offline && !w.Auth.user) {
+      $('#auth-title').textContent = '계정';
+      box.innerHTML = '<p class="tip">계정 서버에 닿지 못했습니다. 인터넷이 연결되면 다시 시도해 주십시오. ' +
+        '그동안에도 학습은 이 기기에서 그대로 됩니다.</p>';
+      return;
+    }
+
+    if (!w.Auth.user) {
+      $('#auth-title').textContent = '로그인';
+      box.innerHTML = authFormHTML(mode || 'in');
+      return;
+    }
+
+    // 로그인한 상태
+    var p = w.Auth.profile || {};
+    $('#auth-title').textContent = '내 계정';
+    var h = '<div class="acct">';
+    h += '<div class="acct-name">' + esc(w.Auth.displayName()) + '</div>';
+    h += '<div class="acct-id">아이디 ' + esc(w.Auth.toId(p.email || '')) + '</div>';
+    var st = p.status === 'approved' ? ['ok', '사용 승인됨']
+           : p.status === 'blocked' ? ['no', '사용 중지됨']
+           : ['wait', '승인 대기 중'];
+    h += '<div class="acct-st ' + st[0] + '">' + st[1] + (w.Auth.isAdmin() ? ' · 관리자' : '') + '</div>';
+    h += '</div>';
+
+    if (p.status === 'pending') {
+      h += '<p class="tip">관리자가 승인하면 바로 쓰실 수 있습니다. ' +
+           '승인 전에도 이 기기에서 혼자 공부하는 것은 됩니다만, 점수가 서버에 올라가지 않아 순위표에 나오지 않습니다.</p>';
+    }
+    if (p.status === 'blocked') {
+      h += '<p class="tip">관리자가 사용을 중지했습니다. 문의해 주십시오.</p>';
+    }
+    if (w.Auth.isAdmin()) {
+      h += '<button class="go" id="btn-admin">승인 관리 열기</button>';
+    }
+    h += '<button class="go" id="btn-signout">로그아웃</button>';
+    box.innerHTML = h;
+  }
+
+  function doAuth(mode) {
+    var id = ($('#au-id').value || '').trim();
+    var pw = $('#au-pw').value || '';
+    var nameEl = $('#au-name');
+    var msg = $('#au-msg');
+    if (!id || !pw) { msg.className = 'authmsg no'; msg.textContent = '아이디와 비밀번호를 넣어 주십시오.'; return; }
+
+    var btn = $('#au-go');
+    btn.disabled = true; btn.textContent = '처리 중…';
+    msg.className = 'authmsg'; msg.textContent = '';
+
+    var p = (mode === 'up')
+      ? w.Auth.signUp(id, pw, nameEl ? nameEl.value : '')
+      : w.Auth.signIn(id, pw);
+
+    p.then(function () {
+      renderAccountBtn();
+      renderAuth();
+      afterLogin();
+      toast(mode === 'up' ? '가입했습니다. 관리자 승인을 기다려 주십시오.' : '로그인했습니다.', 3600);
+    }).catch(function (e) {
+      btn.disabled = false; btn.textContent = (mode === 'up' ? '가입 신청' : '로그인');
+      msg.className = 'authmsg no';
+      msg.textContent = w.Auth.errorText(e);
+    });
+  }
+
+  // 로그인 직후: 서버 진도가 더 앞서 있으면 내려받는다(다른 기기에서 더 했을 때)
+  function afterLogin() {
+    if (!authOn() || !w.Auth.user) return;
+    ['zh', 'en'].forEach(function (L) {
+      w.Auth.pull(L).then(function (row) {
+        if (!row || !row.data) return;
+        var mine = w.Game.total(L);
+        if ((row.xp | 0) > mine) {
+          var cur = w.Store.state;
+          cur[L] = row.data;
+          w.Store.save();
+          toast('다른 기기의 진도가 더 앞서 있어 내려받았습니다.', 3600);
+          renderAll();
+        }
+      });
+    });
+  }
+
+  // 진도가 바뀌면 잠시 뒤 한 번만 올린다(저장할 때마다 올리면 낭비다)
+  function syncSoon() {
+    if (!authOn() || !w.Auth.user || !w.Auth.isApproved()) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(function () {
+      var L = lang;
+      w.Auth.push(L, {
+        data: w.Store.state[L],
+        xp: w.Game.total(L),
+        streak: w.Store.streak(),
+        doneCount: w.Store.doneCount(L)
+      });
+    }, 4000);
+  }
+
+  function renderAdmin() {
+    var box = $('#admin-body');
+    box.innerHTML = '<p class="hint">불러오는 중…</p>';
+    w.Auth.listUsers().then(function (rows) {
+      if (!rows.length) { box.innerHTML = '<p class="hint">아직 가입한 사람이 없습니다.</p>'; return; }
+      var pend = rows.filter(function (r) { return r.status === 'pending'; });
+      var rest = rows.filter(function (r) { return r.status !== 'pending'; });
+      var h = '';
+      h += '<p class="hint">승인해야 그 사람의 학습이 열리고 순위표에 들어옵니다.</p>';
+      if (pend.length) {
+        h += '<h4>승인 대기 ' + pend.length + '명</h4>';
+        pend.forEach(function (r) { h += userRow(r); });
+      }
+      h += '<h4>전체 ' + rows.length + '명</h4>';
+      rest.forEach(function (r) { h += userRow(r); });
+      box.innerHTML = h;
+    });
+  }
+
+  function userRow(r) {
+    var st = r.status === 'approved' ? ['ok', '승인'] : r.status === 'blocked' ? ['no', '중지'] : ['wait', '대기'];
+    var h = '<div class="urow">';
+    h += '<div class="uinfo"><b>' + esc(r.name || '(이름 없음)') + '</b>' +
+         '<span>' + esc(w.Auth.toId(r.email || '')) + ' · ' + String(r.created_at || '').slice(0, 10) + '</span></div>';
+    h += '<span class="ust ' + st[0] + '">' + st[1] + (r.role === 'admin' ? '·관리자' : '') + '</span>';
+    h += '<div class="uact">';
+    if (r.status !== 'approved') h += '<button class="ghost" data-uapprove="' + esc(r.id) + '">승인</button>';
+    if (r.status !== 'blocked') h += '<button class="ghost" data-ublock="' + esc(r.id) + '">중지</button>';
+    h += '</div></div>';
+    return h;
+  }
+
+  function renderRanking(into) {
+    if (!authOn() || !w.Auth.isApproved()) return;
+    w.Auth.ranking(lang, 20).then(function (rows) {
+      if (!rows.length) return;
+      var me = w.Auth.user && w.Auth.user.id;
+      var h = '<div class="card"><h3>친구 순위 <span class="sub">' +
+              (lang === 'zh' ? '중국어' : '영어') + '</span></h3>';
+      h += '<p class="tip">승인된 사람들끼리만 보입니다. 학습 내용은 공유되지 않고 점수·연속일수만 나옵니다.</p>';
+      rows.forEach(function (r, i) {
+        h += '<div class="rrow' + (r.id === me ? ' me' : '') + '">' +
+             '<span class="rno">' + (i + 1) + '</span>' +
+             '<span class="rname">' + esc(r.name || '이름 없음') + (r.id === me ? ' (나)' : '') + '</span>' +
+             '<span class="rxp">' + (r.xp || 0).toLocaleString() + '점</span>' +
+             '<span class="rst">🔥' + (r.streak || 0) + '</span></div>';
+      });
+      h += '</div>';
+      into.insertAdjacentHTML('beforeend', h);
+    });
   }
 
   function renderAll() {
@@ -1176,6 +1382,19 @@
       if (t.dataset.step) { go(t.dataset.step); return; }
       if (t.dataset.goto) { go(t.dataset.goto); return; }
       if (t.dataset.close) { closeSheet(t.dataset.close); return; }
+      if (t.dataset.authmode) { renderAuth(t.dataset.authmode); return; }
+      if (t.dataset.uapprove) {
+        w.Auth.setStatus(t.dataset.uapprove, 'approved').then(function (ok) {
+          toast(ok ? '승인했습니다.' : '승인하지 못했습니다.'); renderAdmin();
+        });
+        return;
+      }
+      if (t.dataset.ublock) {
+        w.Auth.setStatus(t.dataset.ublock, 'blocked').then(function (ok) {
+          toast(ok ? '사용을 중지했습니다.' : '처리하지 못했습니다.'); renderAdmin();
+        });
+        return;
+      }
       if (t.dataset.cday) { setDay(parseInt(t.dataset.cday, 10)); closeSheet('daysheet'); go('brief'); return; }
 
       switch (t.id) {
@@ -1189,6 +1408,12 @@
             else if (how === 'failed') toast('복사하지 못했습니다. 글상자를 길게 눌러 복사해 주십시오.', 3600);
           });
           break;
+        case 'btn-account': renderAuth('in'); $('#authsheet').classList.remove('hidden'); break;
+        case 'au-go': doAuth(($('.authtab.on') || {}).dataset ? $('.authtab.on').dataset.authmode : 'in'); break;
+        case 'btn-signout':
+          w.Auth.signOut().then(function () { renderAccountBtn(); renderAuth('in'); toast('로그아웃했습니다.'); });
+          break;
+        case 'btn-admin': renderAdmin(); $('#adminsheet').classList.remove('hidden'); break;
         case 'btn-menu': openSheet(); break;
         case 'btn-setwhy': openSheet(); setTimeout(function () { $('#in-why').focus(); }, 250); break;
         case 'talk-start':
@@ -1211,7 +1436,7 @@
             toast('Day ' + day + ' 완료. 수고하셨습니다, 대표님.' +
                   (day % w.Report.BLOCK === 0 ? ' — ' + b + '번째 평가가 확정됐습니다.' : ''));
           }
-          renderDone(); renderHeader(); renderLvBar(); renderMotive();
+          renderDone(); renderHeader(); renderLvBar(); renderMotive(); syncSoon();
           break;
         }
         case 'btn-install':
@@ -1244,7 +1469,7 @@
       }
     });
 
-    ['sheet', 'daysheet'].forEach(function (id) {
+    ['sheet', 'daysheet', 'authsheet', 'adminsheet'].forEach(function (id) {
       $('#' + id).addEventListener('click', function (ev) { if (ev.target.id === id) closeSheet(id); });
     });
     $('#day-search').addEventListener('input', function () { renderDayList(this.value); });
@@ -1284,6 +1509,13 @@
     w.Speech.initVoices(function () {});
     wire();
     renderAll();
+    renderAccountBtn();
+    if (authOn()) {
+      w.Auth.init().then(function () {
+        renderAccountBtn();
+        if (w.Auth.user) afterLogin();
+      });
+    }
     go(q.get('step') || 'brief');
 
     if ('serviceWorker' in navigator) {

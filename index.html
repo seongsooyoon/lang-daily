@@ -13,7 +13,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="매일언어">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="css/style.css?v=202608230806">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Serif+SC:wght@600;700&display=swap">
+<link rel="stylesheet" href="css/style.css?v=202608230915">
+<link rel="stylesheet" href="css/theme.css?v=202608230915">
 </head>
 <body>
 
@@ -23,7 +27,10 @@
       <button class="langtab" data-lang="zh"><span class="flag">中</span>중국어</button>
       <button class="langtab" data-lang="en"><span class="flag">EN</span>영어</button>
     </div>
-    <button class="iconbtn" id="btn-menu" title="회차 이동·진도·설정">☰</button>
+    <div class="topright">
+      <button class="iconbtn" id="btn-account" title="계정">👤</button>
+      <button class="iconbtn" id="btn-menu" title="회차 이동·진도·설정">☰</button>
+    </div>
   </div>
   <div class="daybar">
     <button class="daynav" id="day-prev" title="이전 회차">‹</button>
@@ -191,15 +198,39 @@
   </div>
 </div>
 
+<!-- 계정 -->
+<div class="sheet hidden" id="authsheet">
+  <div class="sheet-in">
+    <div class="sheet-head">
+      <h3 id="auth-title">계정</h3>
+      <button class="iconbtn dark" data-close="authsheet">✕</button>
+    </div>
+    <div id="auth-body"></div>
+  </div>
+</div>
+
+<!-- 승인 관리 (관리자) -->
+<div class="sheet hidden" id="adminsheet">
+  <div class="sheet-in">
+    <div class="sheet-head">
+      <h3>승인 관리</h3>
+      <button class="iconbtn dark" data-close="adminsheet">✕</button>
+    </div>
+    <div id="admin-body"></div>
+  </div>
+</div>
+
 <div class="toast hidden" id="toast"></div>
 
-<script src="js/store.js?v=202608230806"></script>
-<script src="js/speech.js?v=202608230806"></script>
-<script src="js/review.js?v=202608230806"></script>
-<script src="js/record.js?v=202608230806"></script>
-<script src="js/rhotic.js?v=202608230806"></script>
-<script src="js/game.js?v=202608230806"></script>
-<script src="js/report.js?v=202608230806"></script>
-<script src="js/app.js?v=202608230806"></script>
+<script src="config.js?v=202608230915"></script>
+<script src="js/auth.js?v=202608230915"></script>
+<script src="js/store.js?v=202608230915"></script>
+<script src="js/speech.js?v=202608230915"></script>
+<script src="js/review.js?v=202608230915"></script>
+<script src="js/record.js?v=202608230915"></script>
+<script src="js/rhotic.js?v=202608230915"></script>
+<script src="js/game.js?v=202608230915"></script>
+<script src="js/report.js?v=202608230915"></script>
+<script src="js/app.js?v=202608230915"></script>
 </body>
 </html>

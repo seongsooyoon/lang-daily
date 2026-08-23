@@ -1,7 +1,7 @@
 /* 오프라인 캐시 — 지하철·비행기에서도 오늘 공부는 열려야 한다.
  * 배포할 때 deploy.sh 가 VERSION 을 배포 시각으로 바꿔 준다(그래야 새 파일이 내려간다).
  */
-var VERSION = '202608230922';
+var VERSION = '202608230923';
 var CACHE = 'langdaily-' + VERSION;
 var SHELL = [
   './', './index.html', './manifest.json',
@@ -43,6 +43,25 @@ self.addEventListener('fetch', function (e) {
   var url = new URL(req.url);
   if (url.origin !== self.location.origin) return;   // 음성인식 등 외부 요청은 건드리지 않는다
 
+  // 페이지(HTML)는 늘 새로 받는다.
+  // 캐시를 먼저 내주면 새로 배포해도 어제 화면이 보이는 일이 생긴다(실제로 겪음).
+  // 나머지 파일은 주소에 배포 시각이 박혀 있어 캐시를 먼저 써도 안전하다.
+  if (req.mode === 'navigate' || (req.headers.get('accept') || '').indexOf('text/html') >= 0) {
+    e.respondWith(
+      fetch(req).then(function (res) {
+        if (res && res.ok) {
+          var copy = res.clone();
+          caches.open(CACHE).then(function (c) { c.put(req, copy); });
+        }
+        return res;
+      }).catch(function () {
+        // 인터넷이 없을 때만 캐시로 연다
+        return caches.match(req).then(function (hit) { return hit || caches.match('./index.html'); });
+      })
+    );
+    return;
+  }
+
   e.respondWith(
     caches.match(req, { ignoreSearch: false }).then(function (hit) {
       var net = fetch(req).then(function (res) {
@@ -52,7 +71,6 @@ self.addEventListener('fetch', function (e) {
         }
         return res;
       }).catch(function () { return hit; });
-      // 캐시가 있으면 바로 보여 주고, 새 파일은 뒤에서 받아 둔다
       return hit || net;
     })
   );

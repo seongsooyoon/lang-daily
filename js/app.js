@@ -928,6 +928,137 @@
     });
   }
 
+  /* ---------------- 메인 표지 ----------------
+   * 표지를 예쁜 그림으로만 두지 않고, 지금까지 쌓인 것을 숫자로 보여 준다.
+   * 칭찬은 반드시 **실제 기록에 근거해서, 구체적으로** 한다.
+   * 막연한 칭찬("잘하시네요")은 오히려 동기를 깎는다는 것이 연구 결과다(Dweck).
+   * 능력이 아니라 한 일(횟수·연속·전략)을 짚는다.
+   */
+
+  var COVER_KEY = 'langdaily.cover.seen';
+
+  function tally() {
+    var t = { streak: w.Store.streak(), done: 0, reps: 0, said: 0, best: 0,
+              xp: 0, badges: 0, boston: null, days: 0, talk: 0 };
+    ['zh', 'en'].forEach(function (L) {
+      if (!DATA[L]) return;
+      var st = w.Store.state[L];
+      t.done += w.Store.doneCount(L);
+      t.xp += w.Game.total(L);
+      Object.keys(st.words).forEach(function (k) { t.reps += st.words[k].reps || 0; });
+      Object.keys(st.scores).forEach(function (k) {
+        t.said++;
+        if (st.scores[k] > t.best) t.best = st.scores[k];
+      });
+      t.talk += Object.keys(st.talk).length;
+      t.badges += Object.keys((st.game && st.game.badges) || {}).length;
+      t.days += DATA[L].meta.days;
+    });
+    var b = w.Store.bostonScore('en');
+    if (b.n) t.boston = b;
+    return t;
+  }
+
+  // 지금 기록에서 가장 내세울 만한 것 하나를 골라 칭찬한다
+  function praiseFor(t) {
+    if (!t.done && !t.reps && !t.said) {
+      return { big: '오늘 첫 걸음을 떼시면 됩니다.',
+               small: '처음부터 잘하는 사람은 없습니다. 시작한 사람만 있습니다.' };
+    }
+    if (t.streak >= 30) {
+      return { big: '한 달을 하루도 빠지지 않으셨습니다.',
+               small: '이 정도면 의지가 아니라 습관입니다. 이제 안 하는 쪽이 어색해집니다.' };
+    }
+    if (t.streak >= 14) {
+      return { big: t.streak + '일 연속입니다.',
+               small: '지겨워지는 구간을 이미 지나셨습니다. 여기서부터는 관성이 밀어 줍니다.' };
+    }
+    if (t.streak >= 7) {
+      return { big: '이레를 이어 오셨습니다.',
+               small: '시작한 사람의 절반이 첫 주에 멈춥니다. 대표님은 남으셨습니다.' };
+    }
+    if (t.reps >= 300) {
+      return { big: '단어를 ' + t.reps.toLocaleString() + '번 소리 내어 말하셨습니다.',
+               small: '눈으로 읽은 것이 아니라 입으로 낸 횟수입니다. 그 숫자가 그대로 실력이 됩니다.' };
+    }
+    if (t.boston && t.boston.ok >= 5) {
+      return { big: '보스턴 발음 ' + t.boston.ok + '개를 통과하셨습니다.',
+               small: 'r을 흘리는 감각이 잡히고 있다는 뜻입니다. 귀가 먼저 열리고 입이 따라옵니다.' };
+    }
+    if (t.best >= 90) {
+      return { big: '최고 ' + t.best + '점까지 내셨습니다.',
+               small: '한 문장이라도 90점을 냈다면, 나머지 문장도 같은 방식으로 올라갑니다.' };
+    }
+    if (t.talk >= 5) {
+      return { big: '대화를 ' + t.talk + '편 마치셨습니다.',
+               small: '문장을 외운 것과 주고받아 본 것은 다릅니다. 실전에서 나오는 건 후자입니다.' };
+    }
+    if (t.done >= 3) {
+      return { big: t.done + '회차를 마치셨습니다.',
+               small: '꾸준함이 쌓이는 중입니다. 오늘 것만 하시면 됩니다.' };
+    }
+    return { big: '시작하셨습니다.',
+             small: '오늘 단어 여섯 개만 채우셔도 하루 몫은 충분합니다.' };
+  }
+
+  function coverLine(L) {
+    var c = DATA[L];
+    if (!c) return '준비 중';
+    var nd = todayDay(c);
+    var doneToday = w.Store.isDone(L, nd);
+    var dl = c.meta.deadline, tail = '';
+    if (dl) {
+      var left = daysBetween(today(), parseDate(dl.date));
+      if (left > 0) tail = ' · ' + dl.label + ' D-' + left;
+    }
+    return 'Day ' + nd + ' / ' + c.meta.days + (doneToday ? ' · 오늘 완료' : '') + tail;
+  }
+
+  function statBox(v, label) {
+    return '<div class="cst"><b>' + v + '</b><span>' + label + '</span></div>';
+  }
+
+  function renderCover() {
+    var t = tally();
+    var p = praiseFor(t);
+
+    $('#cv-praise').innerHTML =
+      '<div class="pr-big">' + esc(p.big) + '</div>' +
+      '<div class="pr-small">' + esc(p.small) + '</div>';
+
+    var h = '';
+    h += statBox(t.streak, '연속 학습일');
+    h += statBox(t.done + ' / ' + t.days, '마친 회차');
+    h += statBox(t.reps.toLocaleString(), '단어 말한 횟수');
+    h += statBox(t.said.toLocaleString(), '말해 본 문장');
+    if (t.boston) h += statBox(t.boston.rate + '%', '보스턴 발음');
+    h += statBox(t.xp.toLocaleString(), '쌓은 점수');
+    $('#cv-stats').innerHTML = h;
+
+    // 받은 배지를 아이콘으로 늘어놓는다
+    var bh = '';
+    ['zh', 'en'].forEach(function (L) {
+      var g = (w.Store.state[L] && w.Store.state[L].game) || {};
+      Object.keys(g.badges || {}).forEach(function (k) {
+        var b = w.Game.badgeOf(k);
+        if (b && bh.indexOf('>' + b.icon + '<') < 0) {
+          bh += '<span class="cbg" title="' + esc(b.name) + '">' + b.icon + '</span>';
+        }
+      });
+    });
+    $('#cv-badges').innerHTML = bh ? ('<span class="cbg-l">받은 배지</span>' + bh) : '';
+
+    $('#cv-zh').textContent = coverLine('zh');
+    $('#cv-en').textContent = coverLine('en');
+  }
+
+  function showCover() { renderCover(); $('#cover').classList.add('on'); }
+
+  function hideCover() {
+    $('#cover').classList.remove('on');
+    try { w.localStorage.setItem(COVER_KEY, w.Store.todayStr()); } catch (e) {}
+  }
+
   function renderAll() {
     renderHeader(); renderLvBar(); renderMotive(); renderBrief(); renderWords(); renderLearn();
     renderSay(); renderTalk(); renderReview(); renderDone();
@@ -1378,6 +1509,11 @@
         });
         return;
       }
+      if (t.dataset.coverLang) {
+        if (t.dataset.coverLang !== lang) setLang(t.dataset.coverLang);
+        hideCover();
+        return;
+      }
       if (t.dataset.lang) { setLang(t.dataset.lang); return; }
       if (t.dataset.step) { go(t.dataset.step); return; }
       if (t.dataset.goto) { go(t.dataset.goto); return; }
@@ -1414,6 +1550,7 @@
           w.Auth.signOut().then(function () { renderAccountBtn(); renderAuth('in'); toast('로그아웃했습니다.'); });
           break;
         case 'btn-admin': renderAdmin(); $('#adminsheet').classList.remove('hidden'); break;
+        case 'btn-cover': closeSheet('sheet'); showCover(); break;
         case 'btn-menu': openSheet(); break;
         case 'btn-setwhy': openSheet(); setTimeout(function () { $('#in-why').focus(); }, 250); break;
         case 'talk-start':
@@ -1510,6 +1647,9 @@
     wire();
     renderAll();
     renderAccountBtn();
+    var seen = '';
+    try { seen = w.localStorage.getItem(COVER_KEY) || ''; } catch (e) {}
+    if (seen !== w.Store.todayStr() && !q.get('step')) showCover();
     if (authOn()) {
       w.Auth.init().then(function () {
         renderAccountBtn();

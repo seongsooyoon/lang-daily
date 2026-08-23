@@ -16,10 +16,60 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Serif+SC:wght@600;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=202608230915">
-<link rel="stylesheet" href="css/theme.css?v=202608230915">
+<link rel="stylesheet" href="css/style.css?v=202608230922">
+<link rel="stylesheet" href="css/theme.css?v=202608230922">
 </head>
 <body>
+
+<!-- 메인 표지 -->
+<div class="cover" id="cover">
+  <div class="cover-in">
+
+    <div class="cover-head">
+      <div class="seal" aria-hidden="true">
+        <svg viewBox="0 0 120 120" width="52" height="52">
+          <rect x="5" y="5" width="110" height="110" rx="10" fill="none" stroke="currentColor" stroke-width="8"/>
+          <text x="60" y="48" text-anchor="middle" font-size="33" font-weight="700"
+                font-family="serif" fill="currentColor">每日</text>
+          <text x="60" y="92" text-anchor="middle" font-size="33" font-weight="700"
+                font-family="serif" fill="currentColor">言語</text>
+        </svg>
+      </div>
+      <div>
+        <h1 class="cover-title">매일 언어</h1>
+        <p class="cover-sub">중국어 · 영어 — 하루 30분</p>
+      </div>
+    </div>
+
+    <div class="praise" id="cv-praise"></div>
+
+    <div class="cover-stats" id="cv-stats"></div>
+    <div class="cover-badges" id="cv-badges"></div>
+
+    <div class="cover-pick">
+      <button class="pick zh" data-cover-lang="zh">
+        <span class="pk-mark">中</span>
+        <span class="pk-name">중국어</span>
+        <span class="pk-line" id="cv-zh">…</span>
+      </button>
+      <button class="pick en" data-cover-lang="en">
+        <span class="pk-mark">EN</span>
+        <span class="pk-name">영어</span>
+        <span class="pk-line" id="cv-en">…</span>
+      </button>
+    </div>
+
+    <div class="cover-foot">
+      <div class="ft-line"></div>
+      <div class="ft-maker">
+        <span class="ft-ko">한국정책연구소</span>
+        <span class="ft-en">KOREA INSTITUTE OF POLICY STUDIES</span>
+      </div>
+      <div class="ft-sub">기획 · 제작</div>
+    </div>
+
+  </div>
+</div>
 
 <header class="top">
   <div class="top-in">
@@ -176,6 +226,8 @@
     <h4>휴대폰에 앱으로 설치</h4>
     <div id="install-box"></div>
 
+    <button class="go" id="btn-cover">표지 · 성과 다시 보기</button>
+
     <h4>나의 이유 · 공부할 자리</h4>
     <p class="hint">스스로 정한 이유와 '언제·어디서'를 적어 두면 실제로 하는 날이 늘어납니다
       (자기결정이론 · 실행의도 연구).</p>
@@ -222,15 +274,15 @@
 
 <div class="toast hidden" id="toast"></div>
 
-<script src="config.js?v=202608230915"></script>
-<script src="js/auth.js?v=202608230915"></script>
-<script src="js/store.js?v=202608230915"></script>
-<script src="js/speech.js?v=202608230915"></script>
-<script src="js/review.js?v=202608230915"></script>
-<script src="js/record.js?v=202608230915"></script>
-<script src="js/rhotic.js?v=202608230915"></script>
-<script src="js/game.js?v=202608230915"></script>
-<script src="js/report.js?v=202608230915"></script>
-<script src="js/app.js?v=202608230915"></script>
+<script src="config.js?v=202608230922"></script>
+<script src="js/auth.js?v=202608230922"></script>
+<script src="js/store.js?v=202608230922"></script>
+<script src="js/speech.js?v=202608230922"></script>
+<script src="js/review.js?v=202608230922"></script>
+<script src="js/record.js?v=202608230922"></script>
+<script src="js/rhotic.js?v=202608230922"></script>
+<script src="js/game.js?v=202608230922"></script>
+<script src="js/report.js?v=202608230922"></script>
+<script src="js/app.js?v=202608230922"></script>
 </body>
 </html>

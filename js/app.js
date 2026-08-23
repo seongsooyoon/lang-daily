@@ -756,6 +756,14 @@
 
   function authFormHTML(mode) {
     var h = '';
+    // 왜 안 되는지 스스로 보이도록 서버 상태를 맨 위에 둔다
+    if (!authOn()) {
+      h += '<div class="svst off">아직 <b>계정 서버가 연결되지 않았습니다</b>. ' +
+           '☰ → 「여러 사람 쓰기」에서 먼저 연결해 주십시오. 연결 전에는 로그인이 되지 않습니다.</div>';
+    } else {
+      h += '<div class="svst ok">서버 연결됨' +
+           (w.Auth.fromLocal ? ' <span class="svtag">이 기기에만 저장된 설정</span>' : '') + '</div>';
+    }
     h += '<div class="authtabs">';
     h += '<button class="authtab' + (mode === 'in' ? ' on' : '') + '" data-authmode="in">로그인</button>';
     h += '<button class="authtab' + (mode === 'up' ? ' on' : '') + '" data-authmode="up">새로 가입</button>';
@@ -831,6 +839,11 @@
     var msg = $('#au-msg');
     if (!id || !pw) { msg.className = 'authmsg no'; msg.textContent = '아이디와 비밀번호를 넣어 주십시오.'; return; }
 
+    if (!authOn()) {
+      msg.className = 'authmsg no';
+      msg.textContent = '계정 서버가 아직 연결되지 않아 로그인할 수 없습니다. ☰ → 「여러 사람 쓰기」에서 연결해 주십시오.';
+      return;
+    }
     var btn = $('#au-go');
     btn.disabled = true; btn.textContent = '처리 중…';
     msg.className = 'authmsg'; msg.textContent = '';
@@ -847,7 +860,14 @@
     }).catch(function (e) {
       btn.disabled = false; btn.textContent = (mode === 'up' ? '가입 신청' : '로그인');
       msg.className = 'authmsg no';
-      msg.textContent = w.Auth.errorText(e);
+      var txt = w.Auth.errorText(e);
+      // 가장 흔한 원인은 '아직 가입을 안 한 것'이다. 그걸 짚어 주지 않으면 계속 헤맨다.
+      if (mode === 'in' && /맞지 않습니다/.test(txt)) {
+        txt += ' 이 아이디로 가입한 적이 없다면 위의 ';
+        msg.innerHTML = esc(txt) + '<b>「새로 가입」</b>' + esc(' 을 먼저 눌러 주십시오.');
+        return;
+      }
+      msg.textContent = txt;
     });
   }
 

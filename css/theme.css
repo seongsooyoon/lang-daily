@@ -356,3 +356,4 @@ main { padding-top: 1.15rem; }
   border-radius: 10px; font-family: inherit; font-size: .92rem; background: #fff; }
 #server-box .row { margin-top: .55rem; }
 .authmsg.ok { color: var(--ok); }
+.ft-rep { font-family: var(--serif); font-size: .82rem; margin-top: .45rem; opacity: .8; letter-spacing: .06em; }

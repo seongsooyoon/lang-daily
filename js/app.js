@@ -75,6 +75,8 @@
       var st = stageOf(d.d), copy = {};
       for (var k in d) if (Object.prototype.hasOwnProperty.call(d, k)) copy[k] = d[k];
       copy.phase = st.n + '단계 · ' + st.name;
+      // 원본 주제에 남은 'Phase 2 총복습' 같은 표기는 단계 이름과 어긋난다
+      if (copy.theme) copy.theme = String(copy.theme).replace(/Phase\s*\d+/g, '구간');
       days.push(copy);
     });
     var m = {}, k2;

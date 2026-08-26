@@ -23,7 +23,7 @@
   }
 
   function blank() {
-    var b = { v: 4, lang: 'zh', rate: 0.8, why: '', plan: '' };
+    var b = { v: 4, lang: 'zh', rate: 0.8, why: '', plan: '', owner: false, starts: {} };
     LANGS.forEach(function (L) { b[L] = blankLang(); });
     return b;
   }
@@ -38,6 +38,8 @@
       b.lang = (LANGS.indexOf(o.lang) >= 0) ? o.lang : 'zh';
       b.rate = (typeof o.rate === 'number' && o.rate >= 0.4 && o.rate <= 1.4) ? o.rate : 0.8;
       b.why = typeof o.why === 'string' ? o.why : '';
+      b.owner = !!o.owner;
+      b.starts = (o.starts && typeof o.starts === 'object') ? o.starts : {};
       b.plan = typeof o.plan === 'string' ? o.plan : '';
       // 예전 진도도 그대로 살린다 — 없는 칸만 빈 값으로 채운다
       LANGS.forEach(function (L) {
@@ -123,6 +125,20 @@
     },
 
     lang: function (v) { if (v) { this.state.lang = v; this.save(); } return this.state.lang; },
+
+    // 로그인해서 한 번 확인한 '주인 여부'를 기억해 둔다 — 인터넷이 없어도 같은 과정이 열리게
+    owner: function (v) {
+      if (v != null) { this.state.owner = !!v; this.save(); }
+      return !!this.state.owner;
+    },
+
+    // 가입자마다 1회차를 시작한 날이 다르다. 처음 열어 본 날을 그 사람의 1일차로 잡는다.
+    startDate: function (lang) {
+      var s = this.state;
+      if (!s.starts) s.starts = {};
+      if (!s.starts[lang]) { s.starts[lang] = todayStr(); this.save(); }
+      return s.starts[lang];
+    },
     // 왜 하는가(자율적 동기) · 언제 어디서 할 것인가(실행의도) — 둘 다 지속률을 올리는 장치
     why: function (v) { if (v != null) { this.state.why = String(v).slice(0, 300); this.save(); } return this.state.why || ''; },
     plan: function (v) { if (v != null) { this.state.plan = String(v).slice(0, 300); this.save(); } return this.state.plan || ''; },

@@ -10,7 +10,8 @@
     return m ? m[1] : 'dev';
   })();
 
-  var DATA = {};                 // { zh: {...}, en: {...}, ja: {...} }
+  var DATA = {};                 // 화면이 쓰는 과정 { zh, en, ja }
+  var RAW = {};                  // 빌드 원본(중국어는 사람에 따라 갈아 끼운다)
   var LANGS = ['zh', 'en', 'ja'];   // 화면에 보일 순서
   var MOTIVE = null;             // 동기 문구 (심리학 근거 포함)
   var BOSTON = null;             // 보스턴 발음 진단 세트
@@ -48,6 +49,60 @@
     var n = daysBetween(parseDate(c.meta.start), today()) + 1;
     return Math.max(1, Math.min(c.meta.days, n));
   }
+  /* ---------- 누구에게 어떤 과정을 보일 것인가 ----------
+   * 중국어 55회차는 대표님의 10/15 출장에 맞춰 짠 개인 일정이다.
+   * 49~55회차가 '출장 1~4일차 시뮬레이션·최종 리허설'이라 다른 사람에게는 맞지 않는다.
+   * 그래서 다른 가입자에게는 1~48회차(일반 중국어)를 1·2·3단계로 나눠 보인다.
+   * 회차 번호는 그대로라 진도·복습 규칙이 어긋나지 않는다.
+   */
+  var ZH_STAGES = [
+    { n: 1, from: 1,  to: 16, name: '기초 — 발음·인사·숫자·이동' },
+    { n: 2, from: 17, to: 32, name: '생활 — 이동·식사·쇼핑·잡담' },
+    { n: 3, from: 33, to: 48, name: '관계와 일 — 명함·미팅·협의' }
+  ];
+
+  function stageOf(n) {
+    for (var i = 0; i < ZH_STAGES.length; i++) {
+      if (n >= ZH_STAGES[i].from && n <= ZH_STAGES[i].to) return ZH_STAGES[i];
+    }
+    return ZH_STAGES[ZH_STAGES.length - 1];
+  }
+
+  function zhStandard(c) {
+    var days = [];
+    c.days.forEach(function (d) {
+      if (d.d > 48) return;                      // 출장 시뮬레이션은 뺀다
+      var st = stageOf(d.d), copy = {};
+      for (var k in d) if (Object.prototype.hasOwnProperty.call(d, k)) copy[k] = d[k];
+      copy.phase = st.n + '단계 · ' + st.name;
+      days.push(copy);
+    });
+    var m = {}, k2;
+    for (k2 in c.meta) if (Object.prototype.hasOwnProperty.call(c.meta, k2)) m[k2] = c.meta[k2];
+    m.title = '표준 중국어 3단계 (48회차)';
+    m.days = days.length;
+    m.target = days.length;
+    m.stages = ZH_STAGES;
+    delete m.deadline;                           // 남의 출장 날짜를 카운트다운할 이유가 없다
+    delete m.stage;
+    m.start = w.Store.startDate('zh');           // 그 사람이 처음 연 날이 1회차
+    m.goal = '통역 없이 인사·이동·식사·미팅을 스스로 해내는 수준. 1단계 기초, 2단계 생활, 3단계 일.';
+    return { meta: m, days: days };
+  }
+
+  // 로그인한 사람이 주인인지 보고 중국어 과정을 갈아 끼운다
+  function applyCourse() {
+    if (!RAW.zh) return;
+    var id = (w.LANG_CONFIG && w.LANG_CONFIG.ownerId) || '';
+    var mine = null;
+    if (w.Auth && w.Auth.user && w.Auth.user.email && w.Auth.toId) {
+      mine = w.Auth.toId(w.Auth.user.email);
+      w.Store.owner(!!id && mine === id);        // 확인한 결과를 기억해 둔다
+    }
+    DATA.zh = w.Store.owner() ? RAW.zh : zhStandard(RAW.zh);
+    if (day > DATA.zh.meta.days) day = DATA.zh.meta.days;
+  }
+
   function cfg() { return DATA[lang]; }
   function dayData(n) {
     var list = cfg().days;
@@ -933,6 +988,8 @@
    */
   function afterLogin() {
     if (!authOn() || !w.Auth.user) return;
+    applyCourse();                              // 주인인지 확인해 중국어 과정을 맞춘다
+    renderAll();
     var langs = LANGS.filter(function (L) { return DATA[L]; });
     var pulled = 0, changed = 0;
     langs.forEach(function (L) {
@@ -1721,10 +1778,13 @@
         case 'btn-account': renderAuth('in'); $('#authsheet').classList.remove('hidden'); break;
         case 'au-go': doAuth(($('.authtab.on') || {}).dataset ? $('.authtab.on').dataset.authmode : 'in'); break;
         case 'btn-signout':
-          w.Auth.signOut().then(function () { renderAccountBtn(); renderAuth('in'); toast('로그아웃했습니다.'); });
+          w.Auth.signOut().then(function () {
+            renderAccountBtn(); renderAuth('in'); toast('로그아웃했습니다.');
+          });
           break;
         case 'btn-admin': renderAdmin(); $('#adminsheet').classList.remove('hidden'); break;
         case 'btn-cover': closeSheet('sheet'); showCover(); break;
+        case 'btn-home': closeSheet('sheet'); closeSheet('daysheet'); showCover(); break;
         case 'sv-open': w.open('https://supabase.com', '_blank', 'noopener'); break;
         case 'sv-showsql':
           loadSchemaSql().then(function (sql) {
@@ -1846,6 +1906,7 @@
 
   function boot() {
     var q = new URLSearchParams(w.location.search);
+    applyCourse();
     var ql = q.get('lang');
     lang = (LANGS.indexOf(ql) >= 0) ? ql : w.Store.lang();
     if (!DATA[lang]) {
@@ -1895,7 +1956,7 @@
     loadJSON('data/boston_guide.json')
   ]).then(function (res) {
     // 아직 원고가 없는 언어는 그냥 빠진다(탭도 숨긴다)
-    if (res[0]) DATA.zh = res[0];
+    if (res[0]) { RAW.zh = res[0]; DATA.zh = res[0]; }
     if (res[1]) DATA.en = res[1];
     if (res[2]) DATA.ja = res[2];
     MOTIVE = res[3];                 // 없어도 앱은 돈다

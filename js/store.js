@@ -65,11 +65,62 @@
     catch (e) { return false; }   // 시크릿 창·저장소 차단에서도 앱은 계속 돌아야 한다
   }
 
+  /* ---------- 두 기기의 진도 합치기 ----------
+   * 덮어쓰지 않는다. 엣지에서 6회차까지, 크롬에서 3회차까지 했다면 둘 다 남아야 한다.
+   * 규칙: 숫자는 큰 쪽 · 참/거짓은 하나라도 참이면 참 · 목록은 합집합 ·
+   *       날짜 문자열은 나중 것 · 그 밖의 문자열은 서버 쪽.
+   * 점수·반복횟수·XP 가 모두 '많이 한 쪽'이 이기므로 되돌아가는 일이 없다.
+   */
+  function mergeVal(a, b) {
+    if (a === undefined || a === null) return b;
+    if (b === undefined || b === null) return a;
+    if (typeof a === 'number' && typeof b === 'number') return Math.max(a, b);
+    if (typeof a === 'boolean' || typeof b === 'boolean') return !!(a || b);
+    if (Array.isArray(a) && Array.isArray(b)) {
+      var out = a.slice();
+      b.forEach(function (x) { if (out.indexOf(x) < 0) out.push(x); });
+      return out;
+    }
+    if (typeof a === 'object' && typeof b === 'object') {
+      var o = {}, k;
+      for (k in a) if (Object.prototype.hasOwnProperty.call(a, k)) o[k] = a[k];
+      for (k in b) if (Object.prototype.hasOwnProperty.call(b, k)) {
+        o[k] = Object.prototype.hasOwnProperty.call(a, k) ? mergeVal(a[k], b[k]) : b[k];
+      }
+      return o;
+    }
+    // 'YYYY-MM-DD' 끼리는 나중 날짜가 맞다(마지막 학습일 등)
+    if (typeof a === 'string' && typeof b === 'string' &&
+        /^\d{4}-\d{2}-\d{2}/.test(a) && /^\d{4}-\d{2}-\d{2}/.test(b)) {
+      return a > b ? a : b;
+    }
+    return b;
+  }
+
   var Store = {
     state: read(),
     LANGS: LANGS,
     todayStr: todayStr,      // 다른 모듈도 같은 기준으로 날짜를 찍게 한다
-    save: function () { return write(this.state); },
+    onSave: null,            // 저장될 때마다 불린다(app.js 가 서버 올리기를 건다)
+    save: function () {
+      var ok = write(this.state);
+      if (typeof this.onSave === 'function') { try { this.onSave(); } catch (e) {} }
+      return ok;
+    },
+
+    // 서버에서 받은 한 언어의 진도를 로컬과 합친다. 실제로 달라졌으면 true.
+    mergeLang: function (lang, remote) {
+      if (!remote || typeof remote !== 'object') return false;
+      var before = JSON.stringify(this.state[lang] || {});
+      var merged = mergeVal(this.state[lang] || blankLang(), remote);
+      // 빈 칸이 생기지 않게 기본 모양을 보장한다
+      var base = blankLang(), k;
+      for (k in base) if (!(k in merged)) merged[k] = base[k];
+      this.state[lang] = merged;
+      var changed = JSON.stringify(merged) !== before;
+      if (changed) write(this.state);
+      return changed;
+    },
 
     lang: function (v) { if (v) { this.state.lang = v; this.save(); } return this.state.lang; },
     // 왜 하는가(자율적 동기) · 언제 어디서 할 것인가(실행의도) — 둘 다 지속률을 올리는 장치

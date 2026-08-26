@@ -926,38 +926,54 @@
     });
   }
 
-  // 로그인 직후: 서버 진도가 더 앞서 있으면 내려받는다(다른 기기에서 더 했을 때)
+  /* ---------- 기기 사이 진도 맞추기 ----------
+   * 로그인하면 ①서버 것을 내려받아 로컬과 **합치고** ②합친 결과를 다시 올린다.
+   * 덮어쓰기가 아니라 합치기라서, 엣지에서 6회차·크롬에서 3회차를 했어도 둘 다 남는다.
+   * 올리기까지 해야 늦게 로그인한 기기도 상대의 진도를 받아 갈 수 있다.
+   */
   function afterLogin() {
     if (!authOn() || !w.Auth.user) return;
-    LANGS.filter(function (L) { return DATA[L]; }).forEach(function (L) {
+    var langs = LANGS.filter(function (L) { return DATA[L]; });
+    var pulled = 0, changed = 0;
+    langs.forEach(function (L) {
       w.Auth.pull(L).then(function (row) {
-        if (!row || !row.data) return;
-        var mine = w.Game.total(L);
-        if ((row.xp | 0) > mine) {
-          var cur = w.Store.state;
-          cur[L] = row.data;
-          w.Store.save();
-          toast('다른 기기의 진도가 더 앞서 있어 내려받았습니다.', 3600);
-          renderAll();
+        if (row && row.data && w.Store.mergeLang(L, row.data)) changed++;
+        pushNow(L);                       // 합친 결과를 올린다 — 서버가 항상 합집합이 되게
+        if (++pulled === langs.length) {
+          if (changed) { renderAll(); toast('다른 기기의 진도를 합쳤습니다.', 3600); }
+          else toast('진도를 서버에 올렸습니다.', 2600);
         }
       });
     });
   }
 
-  // 진도가 바뀌면 잠시 뒤 한 번만 올린다(저장할 때마다 올리면 낭비다)
-  function syncSoon() {
-    if (!authOn() || !w.Auth.user || !w.Auth.isApproved()) return;
-    clearTimeout(syncTimer);
-    syncTimer = setTimeout(function () {
-      var L = lang;
-      w.Auth.push(L, {
-        data: w.Store.state[L],
-        xp: w.Game.total(L),
-        streak: w.Store.streak(),
-        doneCount: w.Store.doneCount(L)
-      });
-    }, 4000);
+  function pushNow(L) {
+    if (!authOn() || !w.Auth.user || !w.Auth.isApproved()) return Promise.resolve(false);
+    if (!DATA[L]) return Promise.resolve(false);
+    return w.Auth.push(L, {
+      data: w.Store.state[L],
+      xp: w.Game.total(L),
+      streak: w.Store.streak(),
+      doneCount: w.Store.doneCount(L)
+    });
   }
+
+  // 진도가 바뀌면 잠시 뒤 한 번만 올린다(저장할 때마다 올리면 낭비다)
+  function syncSoon(L) {
+    if (!authOn() || !w.Auth.user || !w.Auth.isApproved()) return;
+    var target = L || lang;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(function () { pushNow(target); }, 4000);
+  }
+
+  // 저장될 때마다 올리기를 건다 — 어느 화면에서 무엇을 하든 빠짐없이 올라간다
+  w.Store.onSave = function () { syncSoon(); };
+
+  // 창을 덮거나 닫을 때는 기다리지 않고 바로 올린다(4초를 못 채우고 나가는 경우)
+  w.document.addEventListener('visibilitychange', function () {
+    if (w.document.visibilityState === 'hidden') { clearTimeout(syncTimer); pushNow(lang); }
+  });
+  w.addEventListener('pagehide', function () { clearTimeout(syncTimer); pushNow(lang); });
 
   function renderAdmin() {
     var box = $('#admin-body');

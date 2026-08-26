@@ -377,3 +377,60 @@ main { padding-top: 1.15rem; }
 #server-box .row { margin-top: .55rem; }
 .authmsg.ok { color: var(--ok); }
 .ft-rep { font-family: var(--serif); font-size: .82rem; margin-top: .45rem; opacity: .8; letter-spacing: .06em; }
+
+
+/* ---------- 실시간 순위 · 대결 · 전화번호 ---------- */
+
+.livedot {
+  font-size: .68rem; font-weight: 700; color: var(--ok, #2F7D5B);
+  border: 1px solid color-mix(in srgb, var(--ok, #2F7D5B) 40%, transparent);
+  border-radius: 999px; padding: .05rem .45rem; margin-left: .35rem;
+  vertical-align: middle; letter-spacing: .02em;
+}
+
+/* 순위 줄 끝의 '대결' 버튼 */
+.dbtn {
+  flex: none; padding: .18rem .5rem; font-size: .74rem; font-weight: 700;
+  border: 1px solid var(--line); border-radius: 999px;
+  background: transparent; color: var(--dim); cursor: pointer; font-family: inherit;
+}
+.dbtn:hover { color: var(--ink); border-color: var(--ink); }
+
+.duel {
+  border: 1px solid var(--line); border-radius: 12px;
+  padding: .6rem .7rem; margin-top: .55rem;
+}
+.duel-top { font-size: .85rem; display: flex; align-items: baseline; gap: .35rem; flex-wrap: wrap; }
+.duel-st { margin-left: auto; font-size: .78rem; font-weight: 700; color: var(--brick); }
+.duel-sub { font-size: .8rem; color: var(--dim); margin-top: .2rem; }
+.duel-act { display: flex; gap: .4rem; margin-top: .5rem; }
+.duel-act .go { margin: 0; }
+.go.small { width: auto; flex: 1; padding: .45rem .6rem; font-size: .85rem; margin: 0; }
+
+.duel-score { margin-top: .45rem; }
+.ds-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: .22rem 0; font-size: .9rem; border-bottom: 1px dashed var(--line);
+}
+.ds-row:last-of-type { border: 0; }
+.ds-tail { margin-top: .35rem; font-size: .82rem; font-weight: 700; color: var(--brick); }
+
+.phcard .inp {
+  width: 100%; padding: .58rem .7rem; margin-top: .5rem;
+  border: 1px solid var(--line); border-radius: 10px;
+  font-family: inherit; font-size: .92rem; background: #fff; color: var(--ink);
+}
+.ph-state { font-size: .82rem; color: var(--dim); margin: .3rem 0 .1rem; }
+.ph-state .go { display: inline-block; width: auto; margin: 0 0 0 .35rem; padding: .2rem .5rem; font-size: .75rem; }
+.chk { display: flex; gap: .5rem; align-items: flex-start; margin: .6rem 0; font-size: .8rem; line-height: 1.5; }
+.chk input { width: 20px; height: 20px; margin-top: .1rem; flex: none; accent-color: var(--ink); }
+.ph-find { display: flex; gap: .4rem; align-items: center; margin-top: .8rem;
+           padding-top: .8rem; border-top: 1px dashed var(--line); }
+.ph-find .inp { margin-top: 0; }
+.ph-find .go { width: auto; flex: none; margin: 0; white-space: nowrap; padding: .58rem .7rem; }
+.tip.small { font-size: .78rem; }
+.tip.small a { color: var(--brick); }
+
+.ft-legal { margin-top: .7rem; font-size: .72rem; letter-spacing: .02em; opacity: .55; }
+.ft-legal a { color: inherit; text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 1px; }
+.ft-legal a:hover { opacity: 1; }

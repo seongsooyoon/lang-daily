@@ -9,6 +9,9 @@
 (function (w) {
   'use strict';
 
+  // 저장 키에서 차수를 떼어 언어만 남긴다 ('zh2' -> 'zh'). 소리 분류는 차수와 무관하다.
+  function baseOf(L) { return String(L).replace(/\d+$/, ''); }
+
   var BLOCK = 7;                                  // 7회차마다 한 번 평가
 
   /* ---------- 소리 분류 ---------- */
@@ -109,13 +112,13 @@
     // 문장 채점(marks: 단위별 맞음/틀림)을 받아 소리별 정답·오답으로 나눠 담는다
     recordMarks: function (lang, text, phon, marks) {
       if (!marks || !marks.length) return;
-      if (lang === 'zh') {
+      if (baseOf(lang) === 'zh') {
         var inis = initials(phon);
         marks.forEach(function (ok, i) {
           var g = zhGroup(inis[i] == null ? '' : inis[i]);
           w.Store.addSound(lang, g, ok);
         });
-      } else if (lang === 'ja') {
+      } else if (baseOf(lang) === 'ja') {
         // 일본어는 띄어쓰기가 없어 글자 단위로 본다. 발음 표기(로마자)도 함께 넣어 판정한다
         var chars = String(text).split('');
         marks.forEach(function (ok, i) {

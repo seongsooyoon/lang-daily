@@ -13,7 +13,9 @@
   'use strict';
   var KEY = 'langdaily.v1';
 
-  var LANGS = ['zh', 'en', 'ja'];          // 언어를 늘릴 때 여기 한 곳만 고친다
+  // 언어(+차수)를 늘릴 때 여기 한 곳만 고친다.
+  // 'zh2' = 중국어 2차. 같은 언어지만 진도·점수·배지가 1차와 섞이면 안 되므로 별도 키로 둔다.
+  var LANGS = ['zh', 'zh2', 'en', 'ja'];
 
   function blankLang() {
     return { done: {}, scores: {}, words: {}, tones: {}, sounds: {}, talk: {},
@@ -23,7 +25,7 @@
   }
 
   function blank() {
-    var b = { v: 4, lang: 'zh', rate: 0.8, why: '', plan: '', owner: false, starts: {} };
+    var b = { v: 4, lang: 'zh', rate: 0.8, why: '', plan: '', owner: false, starts: {}, stages: {} };
     LANGS.forEach(function (L) { b[L] = blankLang(); });
     return b;
   }
@@ -40,6 +42,7 @@
       b.why = typeof o.why === 'string' ? o.why : '';
       b.owner = !!o.owner;
       b.starts = (o.starts && typeof o.starts === 'object') ? o.starts : {};
+      b.stages = (o.stages && typeof o.stages === 'object') ? o.stages : {};
       b.plan = typeof o.plan === 'string' ? o.plan : '';
       // 예전 진도도 그대로 살린다 — 없는 칸만 빈 값으로 채운다
       LANGS.forEach(function (L) {
@@ -138,6 +141,13 @@
       if (!s.starts) s.starts = {};
       if (!s.starts[lang]) { s.starts[lang] = todayStr(); this.save(); }
       return s.starts[lang];
+    },
+    // 언어별로 마지막에 보던 차수를 기억한다(중국어 1차 'zh' / 2차 'zh2')
+    stagePick: function (base, v) {
+      var s = this.state;
+      if (!s.stages) s.stages = {};
+      if (v) { s.stages[base] = v; this.save(); }
+      return s.stages[base] || base;
     },
     // 왜 하는가(자율적 동기) · 언제 어디서 할 것인가(실행의도) — 둘 다 지속률을 올리는 장치
     why: function (v) { if (v != null) { this.state.why = String(v).slice(0, 300); this.save(); } return this.state.why || ''; },

@@ -253,6 +253,154 @@
         .catch(function () { return []; });
     },
 
+    /* ---------- 실시간 ----------
+     * 남이 공부하면 내 순위표가 바로 움직인다.
+     * 바뀐 내용을 그대로 쓰지 않고 '바뀌었다'는 신호만 받아 다시 조회한다.
+     * 그래야 행 수준 보안에 걸려 일부만 오는 경우에도 화면이 어긋나지 않는다.
+     */
+    watch: function (lang, onChange) {
+      if (!this.sb || !this.isApproved()) return function () {};
+      var ch = this.sb.channel('rank-' + lang)
+        .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'progress', filter: 'lang=eq.' + lang },
+            function () { try { onChange(); } catch (e) {} })
+        .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'duels' },
+            function () { try { onChange(); } catch (e) {} })
+        .subscribe();
+      var sb = this.sb;
+      return function () { try { sb.removeChannel(ch); } catch (e) {} };
+    },
+
+    /* ---------- 전화번호 (동의 기반 친구 찾기) ----------
+     * 번호 자체는 서버에 올리지 않는다. 이 기기에서 해시로 바꿔 그것만 보낸다.
+     * 그래서 서버가 털려도 번호는 나오지 않고, 번호를 이미 아는 사람만 찾을 수 있다.
+     */
+    normPhone: function (s) {
+      var d = String(s || '').replace(/[^0-9]/g, '');
+      if (!d) return '';
+      if (d.indexOf('82') === 0 && d.length >= 11) d = '0' + d.slice(2);   // +82 10 … → 010 …
+      return d;
+    },
+
+    hashPhone: function (phone) {
+      var n = this.normPhone(phone);
+      if (n.length < 9) return Promise.resolve(null);
+      if (!(w.crypto && w.crypto.subtle)) return Promise.resolve(null);
+      var buf = new TextEncoder().encode('lang-daily:' + n);
+      return w.crypto.subtle.digest('SHA-256', buf).then(function (h) {
+        return Array.prototype.map.call(new Uint8Array(h), function (b) {
+          return ('0' + b.toString(16)).slice(-2);
+        }).join('');
+      }).catch(function () { return null; });
+    },
+
+    // 동의 없이는 저장하지 않는다. consent 가 참일 때만 부른다.
+    savePhone: function (phone, consent) {
+      var self = this;
+      if (!this.sb || !this.user) return Promise.resolve({ ok: false, msg: '로그인이 필요합니다.' });
+      if (!consent) return Promise.resolve({ ok: false, msg: '동의하셔야 저장할 수 있습니다.' });
+      return this.hashPhone(phone).then(function (h) {
+        if (!h) return { ok: false, msg: '번호 형식을 확인해 주십시오(숫자 9자리 이상).' };
+        return self.sb.from('phone_index').upsert({
+          user_id: self.user.id,
+          phone_hash: h,
+          consent_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' }).then(function (r) {
+          if (r.error) return { ok: false, msg: r.error.message };
+          return { ok: true };
+        });
+      });
+    },
+
+    myPhoneState: function () {
+      if (!this.sb || !this.user) return Promise.resolve(null);
+      return this.sb.from('phone_index').select('consent_at,updated_at')
+        .eq('user_id', this.user.id).maybeSingle()
+        .then(function (r) { return (r && r.data) || null; })
+        .catch(function () { return null; });
+    },
+
+    deletePhone: function () {
+      if (!this.sb || !this.user) return Promise.resolve(false);
+      return this.sb.from('phone_index').delete().eq('user_id', this.user.id)
+        .then(function (r) { return !r.error; }).catch(function () { return false; });
+    },
+
+    findByPhone: function (phone) {
+      var self = this;
+      if (!this.sb || !this.isApproved()) return Promise.resolve(null);
+      return this.hashPhone(phone).then(function (h) {
+        if (!h) return null;
+        return self.sb.rpc('find_by_phone', { h: h }).then(function (r) {
+          var rows = (r && r.data) || [];
+          return rows.length ? rows[0] : null;
+        }).catch(function () { return null; });
+      });
+    },
+
+    /* ---------- 대결 ---------- */
+
+    // 순위표에 있는 사람들 = 대결을 걸 수 있는 사람들
+    opponents: function (lang) {
+      var me = this.user && this.user.id;
+      return this.ranking(lang, 50).then(function (rows) {
+        return rows.filter(function (r) { return r.id !== me; });
+      });
+    },
+
+    listDuels: function () {
+      var me = this.user && this.user.id;
+      if (!this.sb || !me) return Promise.resolve([]);
+      return this.sb.from('duels').select('*')
+        .or('challenger.eq.' + me + ',opponent.eq.' + me)
+        .in('status', ['pending', 'active', 'done'])
+        .order('created_at', { ascending: false }).limit(20)
+        .then(function (r) { return (r && r.data) || []; })
+        .catch(function () { return []; });
+    },
+
+    createDuel: function (opponentId, lang, days) {
+      var self = this;
+      if (!this.sb || !this.user || !this.isApproved()) {
+        return Promise.resolve({ ok: false, msg: '승인된 계정만 대결을 걸 수 있습니다.' });
+      }
+      return this.sb.from('duels').insert({
+        lang: lang, challenger: this.user.id, opponent: opponentId, days: days || 7, status: 'pending'
+      }).then(function (r) {
+        return r.error ? { ok: false, msg: self.errorText(r.error) } : { ok: true };
+      });
+    },
+
+    acceptDuel: function (id) {
+      if (!this.sb) return Promise.resolve(false);
+      return this.sb.rpc('accept_duel', { duel_id: id })
+        .then(function (r) { return !r.error; }).catch(function () { return false; });
+    },
+
+    // 거절·취소는 상태만 바꾼다(기록은 남긴다)
+    setDuelStatus: function (id, status) {
+      if (!this.sb) return Promise.resolve(false);
+      return this.sb.from('duels').update({ status: status }).eq('id', id)
+        .then(function (r) { return !r.error; }).catch(function () { return false; });
+    },
+
+    duelStanding: function (id) {
+      if (!this.sb) return Promise.resolve(null);
+      return this.sb.rpc('duel_standing', { duel_id: id })
+        .then(function (r) {
+          var rows = (r && r.data) || [];
+          return rows.length ? rows[0] : null;
+        }).catch(function () { return null; });
+    },
+
+    closeDuel: function (id) {
+      if (!this.sb) return Promise.resolve(null);
+      return this.sb.rpc('close_duel', { duel_id: id })
+        .then(function (r) { return (r && r.data) || null; }).catch(function () { return null; });
+    },
+
     /* ---------- 관리자 ---------- */
 
     listUsers: function (status) {

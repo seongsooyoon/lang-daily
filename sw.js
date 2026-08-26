@@ -1,7 +1,7 @@
 /* 오프라인 캐시 — 지하철·비행기에서도 오늘 공부는 열려야 한다.
  * 배포할 때 deploy.sh 가 VERSION 을 배포 시각으로 바꿔 준다(그래야 새 파일이 내려간다).
  */
-var VERSION = '202608261216';
+var VERSION = '202608261636';
 var CACHE = 'langdaily-' + VERSION;
 var SHELL = [
   './', './index.html', './manifest.json',
@@ -11,6 +11,8 @@ var SHELL = [
   './js/review.js?v=' + VERSION, './js/record.js?v=' + VERSION,
   './js/rhotic.js?v=' + VERSION, './js/game.js?v=' + VERSION, './js/report.js?v=' + VERSION, './js/app.js?v=' + VERSION,
   './data/zh.json?v=' + VERSION, './data/en.json?v=' + VERSION,
+  './data/ja.json?v=' + VERSION, './data/zh2.json?v=' + VERSION,
+  './privacy.html',
   './data/motivation.json?v=' + VERSION, './data/boston.json?v=' + VERSION,
   './data/boston_guide.json?v=' + VERSION,
   './icon.svg', './icon-192.png', './icon-512.png', './icon-180.png'

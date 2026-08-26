@@ -358,3 +358,20 @@ b.ok{color:var(--ok)} b.mid{color:var(--warn)} b.bad{color:var(--bad)}
   color:var(--ink-2);font-weight:600}
 .bguide .gc{font-size:.7rem;color:var(--dim);margin-top:.25rem}
 .bguide .src{font-size:.7rem;color:var(--dim);margin-top:.8rem;line-height:1.6}
+
+
+/* ---------- 차수 줄 (중국어 1차/2차) ---------- */
+.stagetabs {
+  display: flex; gap: 6px; width: 100%;
+  margin: 6px 0 0; padding: 0;
+}
+.stagetabs.hidden { display: none; }
+.stagetab {
+  flex: 1; display: flex; align-items: baseline; gap: 6px;
+  padding: 6px 10px; border: 1px solid var(--line, #ccc); border-radius: 8px;
+  background: transparent; color: inherit; font: inherit; font-size: 13px;
+  cursor: pointer; opacity: .65;
+}
+.stagetab.on { opacity: 1; border-color: currentColor; font-weight: 700; }
+.stagetab .sname { font-size: 11px; opacity: .8; font-weight: 400; }
+.stagetab .sdone { margin-left: auto; font-size: 11px; opacity: .7; font-weight: 400; }

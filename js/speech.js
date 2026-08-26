@@ -6,6 +6,9 @@
 (function (w) {
   'use strict';
 
+  // 'zh' 도 'zh2'(2차) 도 'zh-CN' 도 중국어다. 차수는 저장 키일 뿐 언어 판정과 무관하다.
+  function isZh(L) { return String(L).slice(0, 2) === 'zh'; }
+
   var SR = w.SpeechRecognition || w.webkitSpeechRecognition || null;
 
   var Speech = {
@@ -113,7 +116,7 @@
 
     // 비교 단위로 자른다. 중국어는 한자 1글자, 영어는 단어.
     tokenize: function (s, lang) {
-      if (lang === 'zh') {
+      if (isZh(lang)) {
         var m = String(s).match(/[㐀-鿿豈-﫿]/g);
         return m || [];
       }
@@ -158,7 +161,7 @@
     // 영어는 한 단어가 두 토큰으로 풀릴 수 있어(I'm → i am) 둘을 분리해 둔다.
     groups: function (s, lang) {
       var out = [];
-      if (lang === 'zh') {
+      if (isZh(lang)) {
         (this.tokenize(s, lang)).forEach(function (ch) { out.push([ch]); });
         return out;
       }
@@ -228,7 +231,7 @@
     // 원문에 맞음/틀림 색을 입힌 HTML
     markup: function (expected, marks, lang) {
       var out = '', k = 0, s = String(expected);
-      if (lang === 'zh') {
+      if (isZh(lang)) {
         for (var i = 0; i < s.length; i++) {
           var ch = s[i];
           if (/[㐀-鿿豈-﫿]/.test(ch)) {

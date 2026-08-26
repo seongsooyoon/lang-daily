@@ -12,7 +12,10 @@
 
   var DATA = {};                 // 화면이 쓰는 과정 { zh, en, ja }
   var RAW = {};                  // 빌드 원본(중국어는 사람에 따라 갈아 끼운다)
-  var LANGS = ['zh', 'en', 'ja'];   // 화면에 보일 순서
+  // 저장·진도 키 (차수까지 구분한다). 'zh2' = 중국어 2차.
+  var LANGS = ['zh', 'zh2', 'en', 'ja'];
+  // 탭에 보일 언어 (차수는 탭 아래 줄에서 고른다)
+  var TABS = ['zh', 'en', 'ja'];
   var MOTIVE = null;             // 동기 문구 (심리학 근거 포함)
   var BOSTON = null;             // 보스턴 발음 진단 세트
   var BGUIDE = null;             // 보스턴 발음 구조 (조사 정리)
@@ -20,6 +23,21 @@
   var day = 1;
   var step = 'brief';
   var talk = { i: 0, running: false, ok: 0, skip: 0, saved: false };
+
+  // 'zh2' 는 저장 키일 뿐이고 언어는 중국어다. 화면·판정은 언제나 base 로 본다.
+  function baseLang(L) { return String(L).replace(/\d+$/, ''); }
+  function stageNo(L) { var m = String(L).match(/(\d+)$/); return m ? +m[1] : 1; }
+  // 원고가 실제로 있는 차수만 돌려준다
+  function stagesOf(base) {
+    return LANGS.filter(function (L) { return baseLang(L) === base && DATA[L]; });
+  }
+  // 그 언어에서 마지막에 보던 차수(없으면 1차)
+  function curStage(base) {
+    var list = stagesOf(base);
+    if (!list.length) return base;
+    var pick = w.Store.stagePick(base);
+    return list.indexOf(pick) >= 0 ? pick : list[0];
+  }
 
   var $ = function (s) { return d.querySelector(s); };
   var $$ = function (s) { return Array.prototype.slice.call(d.querySelectorAll(s)); };
@@ -92,17 +110,33 @@
     return { meta: m, days: days };
   }
 
-  // 로그인한 사람이 주인인지 보고 중국어 과정을 갈아 끼운다
+  /* 가입자는 각자 1일차부터 시작한다.
+   * 원고의 meta.start 는 대표님이 실제로 시작한 날짜다. 그대로 두면 10월에 가입한 사람이
+   * 첫 화면부터 50회차를 만난다. 그래서 주인이 아닌 사람에게는 '처음 연 날'을 1회차로 바꾼다.
+   * 회차 내용·번호는 건드리지 않으므로 진도·간격복습 규칙은 그대로 간다.
+   */
+  function ownStart(c, L) {
+    var m = {}, k;
+    for (k in c.meta) if (Object.prototype.hasOwnProperty.call(c.meta, k)) m[k] = c.meta[k];
+    m.start = w.Store.startDate(L);
+    delete m.deadline;                           // 남의 출장 날짜를 카운트다운할 이유가 없다
+    return { meta: m, days: c.days };
+  }
+
+  // 로그인한 사람이 주인인지 보고 세 언어의 과정을 갈아 끼운다
   function applyCourse() {
-    if (!RAW.zh) return;
     var id = (w.LANG_CONFIG && w.LANG_CONFIG.ownerId) || '';
     var mine = null;
     if (w.Auth && w.Auth.user && w.Auth.user.email && w.Auth.toId) {
       mine = w.Auth.toId(w.Auth.user.email);
       w.Store.owner(!!id && mine === id);        // 확인한 결과를 기억해 둔다
     }
-    DATA.zh = w.Store.owner() ? RAW.zh : zhStandard(RAW.zh);
-    if (day > DATA.zh.meta.days) day = DATA.zh.meta.days;
+    var owner = w.Store.owner();
+    if (RAW.zh) DATA.zh = owner ? RAW.zh : zhStandard(RAW.zh);   // zhStandard 안에서 이미 1일차로 잡는다
+    ['zh2', 'en', 'ja'].forEach(function (L) {
+      if (RAW[L]) DATA[L] = owner ? RAW[L] : ownStart(RAW[L], L);
+    });
+    if (DATA[lang] && day > DATA[lang].meta.days) day = DATA[lang].meta.days;
   }
 
   function cfg() { return DATA[lang]; }
@@ -117,20 +151,42 @@
   // 원고가 있는 언어만 탭으로 보여 준다(일본어는 회차를 채우는 중)
   function syncLangTabs() {
     $$('.langtab').forEach(function (b) {
-      var has = !!DATA[b.dataset.lang];
-      b.classList.toggle('hidden', !has);
+      b.classList.toggle('hidden', !stagesOf(b.dataset.lang).length);
     });
     $$('.pick').forEach(function (b) {
-      b.classList.toggle('hidden', !DATA[b.dataset.coverLang]);
+      b.classList.toggle('hidden', !stagesOf(b.dataset.coverLang).length);
     });
+    renderStageTabs();
+  }
+
+  // 차수 줄 — 그 언어에 차수가 둘 이상 있을 때만 나온다(지금은 중국어 1차/2차)
+  function renderStageTabs() {
+    var box = $('#stagetabs');
+    if (!box) return;
+    var list = stagesOf(baseLang(lang));
+    if (list.length < 2) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+    box.classList.remove('hidden');
+    box.innerHTML = list.map(function (L) {
+      var m = DATA[L].meta;
+      // 아직 시작일이 안 된 차수는 진도 대신 시작일을 보여 준다.
+      // (2차는 출장이 끝나는 10/15부터라 지금 열면 Day 1 로 보여 '이미 시작한 것'처럼 오해된다)
+      var left = daysBetween(today(), parseDate(m.start));
+      var tail = left > 0 ? (parseDate(m.start).getMonth() + 1) + '/' + parseDate(m.start).getDate() + ' 시작'
+                          : (w.Store.doneCount(L) + '/' + m.days);
+      return '<button class="stagetab' + (L === lang ? ' on' : '') + '" data-stage="' + L + '">' +
+             stageNo(L) + '차' +
+             '<span class="sname">' + esc(m.stageName || '') + '</span>' +
+             '<span class="sdone">' + tail + '</span></button>';
+    }).join('');
   }
 
   function renderHeader() {
     var c = cfg(), dd = dayData();
-    d.body.dataset.lang = lang;                    // 언어에 따라 화면 색이 바뀐다(css/theme.css)
-    d.documentElement.dataset.lang = lang;         // 바탕을 칠하는 것은 html 쪽
+    var base = baseLang(lang);
+    d.body.dataset.lang = base;                    // 언어에 따라 화면 색이 바뀐다(css/theme.css)
+    d.documentElement.dataset.lang = base;         // 바탕을 칠하는 것은 html 쪽
     var tc = d.querySelector('meta[name="theme-color"]');
-    if (tc) tc.setAttribute('content', lang === 'zh' ? '#26221F' : '#1B3554');
+    if (tc) tc.setAttribute('content', base === 'zh' ? '#26221F' : '#1B3554');
     $('#day-n').textContent = 'Day ' + day;
     $('#day-total').textContent = '/ ' + c.meta.days;
     $('#day-phase').textContent = dd.phase;
@@ -147,7 +203,7 @@
 
     $('#progress-in').style.width = (w.Store.doneCount(lang) / c.meta.days * 100) + '%';
     syncLangTabs();
-    $$('.langtab').forEach(function (b) { b.classList.toggle('on', b.dataset.lang === lang); });
+    $$('.langtab').forEach(function (b) { b.classList.toggle('on', b.dataset.lang === baseLang(lang)); });
     $$('.steps button').forEach(function (b) { b.classList.toggle('on', b.dataset.step === step); });
     $('.steps button[data-step="done"]').classList.toggle('did', w.Store.isDone(lang, day));
   }
@@ -166,7 +222,7 @@
 
     var box = $('#b-accent');
     if (dd.accent) {
-      $('#b-accent-title').textContent = ACCENT_TITLE[lang] || '발음 포인트';
+      $('#b-accent-title').textContent = ACCENT_TITLE[baseLang(lang)] || '발음 포인트';
       $('#b-accent-body').innerHTML = emph(dd.accent);
       box.classList.remove('hidden');
     } else box.classList.add('hidden');
@@ -189,7 +245,7 @@
   // 중국어는 한 글자 = 한 음절이라 병음까지 짚어 줄 수 있고, 영어는 단어 단위로 나눈다.
   function mainHTML(text, phon, L) {
     var s = String(text == null ? '' : text);
-    if (L === 'zh') {
+    if (baseLang(L) === 'zh') {
       var syls = (w.Rec && w.Rec.pinyinSplit) ? w.Rec.pinyinSplit(phon) : [];
       var chars = s.match(/[㐀-鿿豈-﫿]/g) || [];
       var useSyl = syls.length === chars.length;      // 수가 맞을 때만 병음을 붙인다
@@ -205,7 +261,7 @@
       }
       return out;
     }
-    if (L === 'ja') {
+    if (baseLang(L) === 'ja') {
       // 일본어는 띄어쓰기가 없다. 글자 종류(한자·히라가나·가타카나·영숫자)가 바뀌는 곳에서 끊는다.
       // 형태소 분석이 아니라 근사치지만, 「研究所|の|職員|です」처럼 실제 단어 경계와 거의 맞고
       // 무엇보다 사전 없이 오프라인에서 돈다.
@@ -493,7 +549,7 @@
       h += '<div class="srow"><span>단어 발음</span><b>' +
            (cur.wordAvg != null ? cur.wordAvg + '점' : '–') + '</b></div>';
       h += '<div class="srow"><span>단어 반복</span><b>' + cur.reps + ' / ' + cur.need + '회</b></div>';
-      if (lang === 'zh') {
+      if (baseLang(lang) === 'zh') {
         h += '<div class="srow"><span>성조 정확도</span><b>' +
              (cur.toneRate != null ? cur.toneRate + '% (' + cur.toneN + '음절)' : '–') + '</b></div>';
       }
@@ -577,6 +633,9 @@
     if (!MOTIVE) { box.innerHTML = ''; return; }
     var m = null, i;
     for (i = 0; i < MOTIVE.daily.length; i++) if (MOTIVE.daily[i].d === day) m = MOTIVE.daily[i];
+    // 동기 문구는 55개뿐인데 과정은 100일이다. 56회차부터는 앞에서부터 다시 돈다.
+    // (빈 칸으로 두는 것보다 낫다 — 문구가 늘면 이 줄은 저절로 안 쓰인다)
+    if (!m && MOTIVE.daily.length) m = MOTIVE.daily[(day - 1) % MOTIVE.daily.length];
     if (!m) { box.innerHTML = ''; return; }
 
     var h = '<div class="mv">';
@@ -839,7 +898,7 @@
          '무작위 보상이나 요란한 연출은 일부러 넣지 않았습니다.</p></div>';
 
     $('#trophy-body').innerHTML = h;
-    renderRanking($('#trophy-body'));
+    renderSocial($('#trophy-body'));
 
     if (bd.fresh.length) {
       var b0 = w.Game.badgeOf(bd.fresh[0]);
@@ -940,9 +999,69 @@
     if (w.Auth.isAdmin()) {
       h += '<button class="go" id="btn-admin">승인 관리 열기</button>';
     }
+    if (p.status === 'approved') h += phoneHTML();
+    h += '<p class="tip small">' +
+         '<a href="privacy.html" target="_blank" rel="noopener">개인정보 처리방침</a> · ' +
+         '<a href="privacy.html#terms" target="_blank" rel="noopener">이용약관</a></p>';
     h += '<button class="go" id="btn-signout">로그아웃</button>';
     box.innerHTML = h;
+
+    // 번호를 이미 등록했는지 표시한다(번호 자체는 서버에도 없고 화면에도 나오지 않는다)
+    w.Auth.myPhoneState().then(function (st) {
+      var el = $('#ph-state');
+      if (!el) return;
+      if (st) {
+        el.innerHTML = '등록돼 있습니다. 동의 시각 ' + esc(String(st.consent_at).slice(0, 16).replace('T', ' ')) +
+                       ' <button class="go small" id="btn-phone-del">지우기</button>';
+      } else {
+        el.textContent = '아직 등록하지 않으셨습니다. 등록하지 않아도 학습과 순위는 그대로 됩니다.';
+      }
+    });
   }
+
+  /* ---------- 전화번호로 친구 찾기 (선택 · 동의 필수) ----------
+   * 번호 자체는 서버로 보내지 않는다. 이 기기에서 해시로 바꿔 그것만 올린다.
+   * 그래서 번호를 이미 아는 사람만 찾을 수 있고, 서버에서 번호를 되돌릴 수 없다.
+   */
+  function phoneHTML() {
+    var h = '<div class="card phcard"><h3>전화번호로 친구 찾기 <span class="sub">선택 사항</span></h3>';
+    h += '<p class="tip">번호를 등록해 두면 <b>내 번호를 이미 아는 사람만</b> 저를 찾아 대결을 걸 수 있습니다. ' +
+         '번호 자체는 서버에 올라가지 않습니다 — 이 기기에서 되돌릴 수 없는 값으로 바꿔 그것만 보냅니다.</p>';
+    h += '<div class="ph-state" id="ph-state">확인 중…</div>';
+    h += '<input class="inp" id="ph-num" type="tel" inputmode="numeric" placeholder="010-0000-0000" autocomplete="tel">';
+    h += '<label class="chk"><input type="checkbox" id="ph-consent"> ' +
+         '<span>전화번호 수집·이용에 동의합니다. (수집 항목: 전화번호를 변환한 값 / 목적: 친구 찾기 · 대결 / ' +
+         '보유: 삭제 요청 시까지 · 탈퇴 시 즉시 파기 / 동의하지 않아도 학습과 순위는 그대로 이용하실 수 있습니다)</span></label>';
+    h += '<p class="tip small">자세한 내용은 <a href="privacy.html" target="_blank" rel="noopener">개인정보 처리방침</a>에 적어 두었습니다.</p>';
+    h += '<button class="go primary" id="btn-phone-save">번호 등록</button>';
+    h += '<div class="ph-find"><input class="inp" id="fp-num" type="tel" inputmode="numeric" placeholder="찾을 친구의 번호">' +
+         '<button class="go" id="btn-find-phone">이 번호로 찾기</button></div>';
+    h += '</div>';
+    return h;
+  }
+
+  function savePhone() {
+    var num = ($('#ph-num') || {}).value || '';
+    var ok = ($('#ph-consent') || {}).checked;
+    if (!num.trim()) { toast('번호를 넣어 주십시오.'); return; }
+    if (!ok) { toast('동의하셔야 저장할 수 있습니다.', 3000); return; }
+    w.Auth.savePhone(num, true).then(function (r) {
+      toast(r.ok ? '번호를 등록했습니다.' : (r.msg || '저장하지 못했습니다.'), 3000);
+      if (r.ok) renderAuth();
+    });
+  }
+
+  function findFriend() {
+    var num = ($('#fp-num') || {}).value || '';
+    if (!num.trim()) { toast('찾을 번호를 넣어 주십시오.'); return; }
+    w.Auth.findByPhone(num).then(function (r) {
+      if (!r) { toast('그 번호로 등록한 사람이 없습니다.', 3000); return; }
+      lastFound = r;
+      if (w.confirm(r.name + ' 님을 찾았습니다. 대결을 거시겠습니까?')) askDuel(r.id, r.name);
+    });
+  }
+
+  var lastFound = null;
 
   function doAuth(mode) {
     var id = ($('#au-id').value || '').trim();
@@ -1066,23 +1185,159 @@
     return h;
   }
 
-  function renderRanking(into) {
+  /* ---------------- 친구 순위 · 대결 ----------------
+   * 순위는 '실시간'이다. 남이 공부하면 서버가 바뀌었다고 알려 주고, 그때 다시 조회한다.
+   * 바뀐 내용을 그대로 쓰지 않는 이유는 행 수준 보안 때문에 일부만 올 수 있어서다.
+   * 대결은 기간을 정해 그 사이에 번 점수만 겨룬다. 시작 점수는 서버가 찍는다(자기 신고 금지).
+   */
+
+  var socialOff = null;      // 실시간 구독 해제 함수
+  var socialTimer = null;
+
+  function stopSocial() {
+    if (socialOff) { try { socialOff(); } catch (e) {} socialOff = null; }
+    clearTimeout(socialTimer);
+  }
+
+  function renderSocial(into) {
+    stopSocial();
     if (!authOn() || !w.Auth.isApproved()) return;
-    w.Auth.ranking(lang, 20).then(function (rows) {
-      if (!rows.length) return;
-      var me = w.Auth.user && w.Auth.user.id;
-      var h = '<div class="card"><h3>친구 순위 <span class="sub">' +
-              (lang === 'zh' ? '중국어' : '영어') + '</span></h3>';
-      h += '<p class="tip">승인된 사람들끼리만 보입니다. 학습 내용은 공유되지 않고 점수·연속일수만 나옵니다.</p>';
-      rows.forEach(function (r, i) {
-        h += '<div class="rrow' + (r.id === me ? ' me' : '') + '">' +
-             '<span class="rno">' + (i + 1) + '</span>' +
-             '<span class="rname">' + esc(r.name || '이름 없음') + (r.id === me ? ' (나)' : '') + '</span>' +
-             '<span class="rxp">' + (r.xp || 0).toLocaleString() + '점</span>' +
-             '<span class="rst">🔥' + (r.streak || 0) + '</span></div>';
-      });
+    into.insertAdjacentHTML('beforeend', '<div id="social"><p class="tip">순위를 불러오는 중…</p></div>');
+    fillSocial();
+    socialOff = w.Auth.watch(lang, function () {
+      // 여러 사람이 동시에 저장하면 신호가 몰린다. 모아서 한 번만 다시 그린다.
+      clearTimeout(socialTimer);
+      socialTimer = setTimeout(fillSocial, 900);
+    });
+  }
+
+  function langLabel(L) {
+    var m = DATA[L] && DATA[L].meta;
+    return (m ? m.lang : L) + (stageNo(L) > 1 ? ' ' + stageNo(L) + '차' : '');
+  }
+
+  function fillSocial() {
+    var box = $('#social');
+    if (!box) { stopSocial(); return; }        // 다른 화면으로 갔다
+    Promise.all([w.Auth.ranking(lang, 20), w.Auth.listDuels()])
+      .then(function (res) {
+        return closeExpired(res[1]).then(function (d) { return [res[0], d]; });
+      })
+      .then(function (res) {
+        var box2 = $('#social');
+        if (!box2) return null;
+        box2.innerHTML = rankHTML(res[0]) + duelHTML(res[1]);
+        return fillStandings(res[1]);
+      })
+      .catch(function () {});
+  }
+
+  // 기간이 끝난 대결은 열어 볼 때 마감한다(승패는 서버가 정한다)
+  function closeExpired(duels) {
+    var now = Date.now();
+    var todo = duels.filter(function (d) {
+      return d.status === 'active' && d.end_at && new Date(d.end_at).getTime() <= now;
+    });
+    if (!todo.length) return Promise.resolve(duels);
+    return Promise.all(todo.map(function (d) { return w.Auth.closeDuel(d.id); }))
+      .then(function () { return w.Auth.listDuels(); });
+  }
+
+  function rankHTML(rows) {
+    var me = w.Auth.user && w.Auth.user.id;
+    var h = '<div class="card"><h3>친구 순위 <span class="sub">' + esc(langLabel(lang)) +
+            '</span> <span class="livedot" title="실시간으로 바뀝니다">● 실시간</span></h3>';
+    h += '<p class="tip">승인된 사람들끼리만 보입니다. 학습 내용과 녹음은 서버로 가지 않고 ' +
+         '점수·연속일수만 나옵니다. 남이 공부하면 이 표는 새로고침 없이 바뀝니다.</p>';
+    if (!rows.length) {
+      h += '<p class="tip">아직 점수가 올라온 사람이 없습니다. 오늘 한 회차를 마치면 첫 줄에 오릅니다.</p>';
+    }
+    rows.forEach(function (r, i) {
+      h += '<div class="rrow' + (r.id === me ? ' me' : '') + '">' +
+           '<span class="rno">' + (i + 1) + '</span>' +
+           '<span class="rname">' + esc(r.name || '이름 없음') + (r.id === me ? ' (나)' : '') + '</span>' +
+           '<span class="rxp">' + (r.xp || 0).toLocaleString() + '점</span>' +
+           '<span class="rst">🔥' + (r.streak || 0) + '</span>' +
+           (r.id === me ? '' : '<button class="dbtn" data-duel-to="' + esc(r.id) +
+                               '" data-duel-name="' + esc(r.name || '') + '">대결</button>') +
+           '</div>';
+    });
+    h += '</div>';
+    return h;
+  }
+
+  function dLeft(end) {
+    var ms = new Date(end).getTime() - Date.now();
+    if (ms <= 0) return '종료';
+    var d = Math.floor(ms / 86400000);
+    return d >= 1 ? ('D-' + d) : (Math.ceil(ms / 3600000) + '시간 남음');
+  }
+
+  function duelHTML(duels) {
+    var me = w.Auth.user && w.Auth.user.id;
+    var h = '<div class="card"><h3>대결 <span class="sub">같은 기간에 더 많이 번 사람</span></h3>';
+    h += '<p class="tip">정한 기간 동안 <b>새로 번 점수만</b> 셉니다. 지금까지 쌓인 점수가 많다고 유리하지 않습니다. ' +
+         '시작 점수는 서버가 찍으므로 스스로 적을 수 없습니다.</p>';
+
+    var mine = duels.filter(function (d) { return d.status !== 'declined' && d.status !== 'canceled'; });
+    if (!mine.length) {
+      h += '<p class="tip">진행 중인 대결이 없습니다. 위 순위표에서 <b>대결</b>을 누르면 신청됩니다.</p>';
+    }
+    mine.forEach(function (d) {
+      var iAmC = d.challenger === me;
+      var who = iAmC ? '내가 걸었습니다' : '나에게 걸어왔습니다';
+      h += '<div class="duel">';
+      h += '<div class="duel-top"><b>' + esc(langLabel(d.lang)) + '</b> · ' + d.days + '일 · ' +
+           '<span class="duel-st">' +
+           (d.status === 'pending' ? '수락 대기' : d.status === 'active' ? dLeft(d.end_at) : '끝남') +
+           '</span></div>';
+      if (d.status === 'pending') {
+        h += '<div class="duel-sub">' + who + '</div>';
+        if (!iAmC) {
+          h += '<div class="duel-act">' +
+               '<button class="go small primary" data-duel-accept="' + esc(d.id) + '">수락</button>' +
+               '<button class="go small" data-duel-decline="' + esc(d.id) + '">거절</button></div>';
+        } else {
+          h += '<div class="duel-act"><button class="go small" data-duel-cancel="' + esc(d.id) + '">취소</button></div>';
+        }
+      } else {
+        h += '<div class="duel-score" id="ds-' + esc(d.id) + '">점수를 불러오는 중…</div>';
+      }
       h += '</div>';
-      into.insertAdjacentHTML('beforeend', h);
+    });
+    h += '</div>';
+    return h;
+  }
+
+  // 진행 중·끝난 대결의 점수는 서버 함수로 받아 채운다
+  function fillStandings(duels) {
+    var live = duels.filter(function (d) { return d.status === 'active' || d.status === 'done'; });
+    return Promise.all(live.map(function (d) {
+      return w.Auth.duelStanding(d.id).then(function (st) {
+        var el = $('#ds-' + d.id);
+        if (!el || !st) return;
+        var mine = st.me_gain | 0, yours = st.you_gain | 0;
+        var tail = d.status === 'done'
+          ? (mine > yours ? '🏆 이겼습니다' : mine < yours ? '아쉽게 졌습니다' : '무승부입니다')
+          : (mine > yours ? '앞서고 있습니다' : mine < yours ? '뒤지고 있습니다' : '동점입니다');
+        el.innerHTML =
+          '<div class="ds-row"><span>나</span><b>' + mine.toLocaleString() + '점</b></div>' +
+          '<div class="ds-row"><span>' + esc(st.you_name || '상대') + '</span><b>' +
+          yours.toLocaleString() + '점</b></div>' +
+          '<div class="ds-tail">' + tail + '</div>';
+      });
+    }));
+  }
+
+  function askDuel(toId, toName) {
+    var days = w.prompt('며칠 동안 겨루시겠습니까? (3 · 7 · 14 중에서)', '7');
+    if (days === null) return;
+    var n = parseInt(days, 10);
+    if (!(n === 3 || n === 7 || n === 14)) { toast('3, 7, 14 중에서 골라 주십시오.'); return; }
+    w.Auth.createDuel(toId, lang, n).then(function (r) {
+      if (!r.ok) { toast(r.msg || '신청하지 못했습니다.'); return; }
+      toast((toName || '상대') + '님에게 ' + n + '일 대결을 신청했습니다.', 3200);
+      fillSocial();
     });
   }
 
@@ -1210,9 +1465,13 @@
     });
     $('#cv-badges').innerHTML = bh ? ('<span class="cbg-l">받은 배지</span>' + bh) : '';
 
-    LANGS.forEach(function (L) {
-      var el = $('#cv-' + L);
-      if (el) el.textContent = coverLine(L);
+    // 표지 카드는 언어마다 하나다. 차수가 여럿이면 마지막에 보던 차수의 줄을 보여 준다.
+    TABS.forEach(function (base) {
+      var el = $('#cv-' + base);
+      if (!el) return;
+      var list = stagesOf(base);
+      if (!list.length) { el.textContent = ''; return; }
+      el.textContent = coverLine(curStage(base));
     });
   }
 
@@ -1305,7 +1564,7 @@
     if (s === 'review') renderReview();
     if (s === 'say') updateSayScore();
     if (s === 'words') updateWordBar();
-    if (s === 'trophy') renderTrophy();
+    if (s === 'trophy') renderTrophy(); else stopSocial();
     if (s === 'report') { renderBoston(); renderReport(); renderSituations(); }
     if (s !== 'talk') { talk.running = false; w.Speech.stop(); w.Speech.abort(); }
     w.Rec.cancel();
@@ -1449,7 +1708,7 @@
   }
 
   function showRec(box, rec, an, text, phon, srcDay, idx) {
-    var isZh = lang === 'zh';
+    var isZh = baseLang(lang) === 'zh';
     var expected = isZh ? w.Rec.tones(phon) : [];
     var judge = isZh && an ? w.Rec.judgeTones(an, expected) : null;
     var hgt = isZh ? 132 : 84;
@@ -1743,11 +2002,43 @@
         return;
       }
       if (t.dataset.coverLang) {
-        if (t.dataset.coverLang !== lang) setLang(t.dataset.coverLang);
+        // 표지 카드는 언어만 고른다. 차수는 그 언어에서 마지막에 보던 것으로 연다.
+        var ck = curStage(t.dataset.coverLang);
+        if (ck !== lang) setLang(ck);
         hideCover();
         return;
       }
-      if (t.dataset.lang) { setLang(t.dataset.lang); return; }
+      if (t.dataset.lang) { setLang(curStage(t.dataset.lang)); return; }
+      if (t.dataset.duelTo) { askDuel(t.dataset.duelTo, t.dataset.duelName); return; }
+      if (t.dataset.duelAccept) {
+        w.Auth.acceptDuel(t.dataset.duelAccept).then(function (ok) {
+          toast(ok ? '대결이 시작됐습니다. 지금부터 버는 점수만 셉니다.' : '수락하지 못했습니다.', 3200);
+          fillSocial();
+        });
+        return;
+      }
+      if (t.dataset.duelDecline) {
+        w.Auth.setDuelStatus(t.dataset.duelDecline, 'declined').then(function () { fillSocial(); });
+        return;
+      }
+      if (t.dataset.duelCancel) {
+        w.Auth.setDuelStatus(t.dataset.duelCancel, 'canceled').then(function () { fillSocial(); });
+        return;
+      }
+      if (t.id === 'btn-phone-save') { savePhone(); return; }
+      if (t.id === 'btn-phone-del') {
+        w.Auth.deletePhone().then(function (ok) {
+          toast(ok ? '전화번호를 지웠습니다.' : '지우지 못했습니다.');
+          renderAuth();
+        });
+        return;
+      }
+      if (t.id === 'btn-find-phone') { findFriend(); return; }
+      if (t.dataset.stage) {
+        w.Store.stagePick(baseLang(t.dataset.stage), t.dataset.stage);
+        setLang(t.dataset.stage);
+        return;
+      }
       if (t.dataset.step) { go(t.dataset.step); return; }
       if (t.dataset.goto) { go(t.dataset.goto); return; }
       if (t.dataset.close) { closeSheet(t.dataset.close); return; }
@@ -1955,12 +2246,13 @@
   Promise.all([
     loadJSON('data/zh.json'), loadJSON('data/en.json'), loadJSON('data/ja.json'),
     loadJSON('data/motivation.json'), loadJSON('data/boston.json'),
-    loadJSON('data/boston_guide.json')
+    loadJSON('data/boston_guide.json'), loadJSON('data/zh2.json')
   ]).then(function (res) {
     // 아직 원고가 없는 언어는 그냥 빠진다(탭도 숨긴다)
     if (res[0]) { RAW.zh = res[0]; DATA.zh = res[0]; }
-    if (res[1]) DATA.en = res[1];
-    if (res[2]) DATA.ja = res[2];
+    if (res[1]) { RAW.en = res[1]; DATA.en = res[1]; }
+    if (res[2]) { RAW.ja = res[2]; DATA.ja = res[2]; }
+    if (res[6]) { RAW.zh2 = res[6]; DATA.zh2 = res[6]; }   // 중국어 2차(원고가 있으면 차수 줄이 생긴다)
     MOTIVE = res[3];                 // 없어도 앱은 돈다
     BOSTON = res[4];
     BGUIDE = res[5];

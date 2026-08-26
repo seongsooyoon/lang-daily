@@ -10,7 +10,8 @@
     return m ? m[1] : 'dev';
   })();
 
-  var DATA = {};                 // { zh: {...}, en: {...} }
+  var DATA = {};                 // { zh: {...}, en: {...}, ja: {...} }
+  var LANGS = ['zh', 'en', 'ja'];   // 화면에 보일 순서
   var MOTIVE = null;             // 동기 문구 (심리학 근거 포함)
   var BOSTON = null;             // 보스턴 발음 진단 세트
   var BGUIDE = null;             // 보스턴 발음 구조 (조사 정리)
@@ -56,6 +57,17 @@
 
   /* ---------------- 렌더 ---------------- */
 
+  // 원고가 있는 언어만 탭으로 보여 준다(일본어는 회차를 채우는 중)
+  function syncLangTabs() {
+    $$('.langtab').forEach(function (b) {
+      var has = !!DATA[b.dataset.lang];
+      b.classList.toggle('hidden', !has);
+    });
+    $$('.pick').forEach(function (b) {
+      b.classList.toggle('hidden', !DATA[b.dataset.coverLang]);
+    });
+  }
+
   function renderHeader() {
     var c = cfg(), dd = dayData();
     d.body.dataset.lang = lang;                    // 언어에 따라 화면 색이 바뀐다(css/theme.css)
@@ -77,6 +89,7 @@
     } else pill.classList.add('hidden');
 
     $('#progress-in').style.width = (w.Store.doneCount(lang) / c.meta.days * 100) + '%';
+    syncLangTabs();
     $$('.langtab').forEach(function (b) { b.classList.toggle('on', b.dataset.lang === lang); });
     $$('.steps button').forEach(function (b) { b.classList.toggle('on', b.dataset.step === step); });
     $('.steps button[data-step="done"]').classList.toggle('did', w.Store.isDone(lang, day));
@@ -95,8 +108,22 @@
     $('#b-tip').textContent = dd.tip;
 
     var box = $('#b-accent');
-    if (dd.accent) { $('#b-accent-body').textContent = dd.accent; box.classList.remove('hidden'); }
-    else box.classList.add('hidden');
+    if (dd.accent) {
+      $('#b-accent-title').textContent = ACCENT_TITLE[lang] || '발음 포인트';
+      $('#b-accent-body').innerHTML = emph(dd.accent);
+      box.classList.remove('hidden');
+    } else box.classList.add('hidden');
+  }
+
+  var ACCENT_TITLE = {
+    zh: '성조·발음 포인트',
+    en: '보스턴 발음 포인트',
+    ja: '고저 액센트 포인트'
+  };
+
+  // 원고에서 쓰는 **굵게** 만 살린다. 나머지는 글자 그대로 — 원고가 화면을 건드리지 못하게
+  function emph(text) {
+    return esc(text).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
   }
 
   /* ---------------- 본문 조각 (눌러서 그 단어만 듣기) ---------------- */
@@ -119,6 +146,34 @@
           k++;
         } else out += esc(ch);
       }
+      return out;
+    }
+    if (L === 'ja') {
+      // 일본어는 띄어쓰기가 없다. 글자 종류(한자·히라가나·가타카나·영숫자)가 바뀌는 곳에서 끊는다.
+      // 형태소 분석이 아니라 근사치지만, 「研究所|の|職員|です」처럼 실제 단어 경계와 거의 맞고
+      // 무엇보다 사전 없이 오프라인에서 돈다.
+      var CLS = [
+        /[一-鿿㐀-䶿]/,          // 한자
+        /[぀-ゟ]/,                        // 히라가나
+        /[゠-ヿｦ-ﾟ]/,          // 가타카나(장음 ー 포함)
+        /[A-Za-z0-9]/                             // 영숫자
+      ];
+      function clsOf(ch) {
+        for (var i = 0; i < CLS.length; i++) if (CLS[i].test(ch)) return i;
+        return -1;                                 // 문장부호·공백 = 끊는 자리
+      }
+      var out = '', buf = '', cur = -1;
+      function flush() {
+        if (buf) out += '<span class="tk" data-say="' + esc(buf) + '">' + esc(buf) + '</span>';
+        buf = '';
+      }
+      for (var i = 0; i < s.length; i++) {
+        var ch = s[i], c = clsOf(ch);
+        if (c < 0) { flush(); cur = -1; out += esc(ch); continue; }
+        if (c !== cur) { flush(); cur = c; }
+        buf += ch;
+      }
+      flush();
       return out;
     }
     return s.split(/(\s+)/).map(function (p) {
@@ -874,7 +929,7 @@
   // 로그인 직후: 서버 진도가 더 앞서 있으면 내려받는다(다른 기기에서 더 했을 때)
   function afterLogin() {
     if (!authOn() || !w.Auth.user) return;
-    ['zh', 'en'].forEach(function (L) {
+    LANGS.filter(function (L) { return DATA[L]; }).forEach(function (L) {
       w.Auth.pull(L).then(function (row) {
         if (!row || !row.data) return;
         var mine = w.Game.total(L);
@@ -968,7 +1023,7 @@
   function tally() {
     var t = { streak: w.Store.streak(), done: 0, reps: 0, said: 0, best: 0,
               xp: 0, badges: 0, boston: null, days: 0, talk: 0 };
-    ['zh', 'en'].forEach(function (L) {
+    LANGS.forEach(function (L) {
       if (!DATA[L]) return;
       var st = w.Store.state[L];
       t.done += w.Store.doneCount(L);
@@ -1039,7 +1094,10 @@
       var left = daysBetween(today(), parseDate(dl.date));
       if (left > 0) tail = ' · ' + dl.label + ' D-' + left;
     }
-    return 'Day ' + nd + ' / ' + c.meta.days + (doneToday ? ' · 오늘 완료' : '') + tail;
+    // 아직 안 쓴 회차가 있으면 '작성분 / 목표' 를 같이 보여 준다 — 진도가 멈춘 게 아니라는 표시
+    var m = c.meta, head = m.stage ? m.stage + '차 ' : '';
+    var total = (m.target && m.target > m.days) ? (m.days + '↑ / ' + m.target) : String(m.days);
+    return head + 'Day ' + nd + ' / ' + total + (doneToday ? ' · 오늘 완료' : '') + tail;
   }
 
   function statBox(v, label) {
@@ -1065,7 +1123,8 @@
 
     // 받은 배지를 아이콘으로 늘어놓는다
     var bh = '';
-    ['zh', 'en'].forEach(function (L) {
+    LANGS.forEach(function (L) {
+      if (!DATA[L]) return;
       var g = (w.Store.state[L] && w.Store.state[L].game) || {};
       Object.keys(g.badges || {}).forEach(function (k) {
         var b = w.Game.badgeOf(k);
@@ -1076,8 +1135,10 @@
     });
     $('#cv-badges').innerHTML = bh ? ('<span class="cbg-l">받은 배지</span>' + bh) : '';
 
-    $('#cv-zh').textContent = coverLine('zh');
-    $('#cv-en').textContent = coverLine('en');
+    LANGS.forEach(function (L) {
+      var el = $('#cv-' + L);
+      if (el) el.textContent = coverLine(L);
+    });
   }
 
   function showCover() { renderCover(); $('#cover').classList.add('on'); }
@@ -1770,8 +1831,10 @@
   function boot() {
     var q = new URLSearchParams(w.location.search);
     var ql = q.get('lang');
-    lang = (ql === 'en' || ql === 'zh') ? ql : w.Store.lang();
-    if (!DATA[lang]) lang = DATA.zh ? 'zh' : 'en';
+    lang = (LANGS.indexOf(ql) >= 0) ? ql : w.Store.lang();
+    if (!DATA[lang]) {
+      lang = LANGS.filter(function (L) { return DATA[L]; })[0];
+    }
     w.Store.lang(lang);
 
     var qd = parseInt(q.get('day'), 10);
@@ -1811,16 +1874,18 @@
   }
 
   Promise.all([
-    loadJSON('data/zh.json'), loadJSON('data/en.json'),
+    loadJSON('data/zh.json'), loadJSON('data/en.json'), loadJSON('data/ja.json'),
     loadJSON('data/motivation.json'), loadJSON('data/boston.json'),
     loadJSON('data/boston_guide.json')
   ]).then(function (res) {
+    // 아직 원고가 없는 언어는 그냥 빠진다(탭도 숨긴다)
     if (res[0]) DATA.zh = res[0];
     if (res[1]) DATA.en = res[1];
-    MOTIVE = res[2];                 // 없어도 앱은 돈다
-    BOSTON = res[3];
-    BGUIDE = res[4];
-    if (!DATA.zh && !DATA.en) return fail('data/zh.json · data/en.json 을 읽을 수 없습니다.');
+    if (res[2]) DATA.ja = res[2];
+    MOTIVE = res[3];                 // 없어도 앱은 돈다
+    BOSTON = res[4];
+    BGUIDE = res[5];
+    if (!Object.keys(DATA).length) return fail('학습 자료(data/*.json)를 읽을 수 없습니다.');
     boot();
   });
 

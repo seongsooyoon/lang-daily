@@ -40,6 +40,19 @@ html[data-lang="en"], body[data-lang="en"] {
   --wash2: rgba(44, 110, 117, .10);
 }
 
+/* 일본어 — 남빛과 주홍(朱). 중국어의 먹·영어의 잉크블루와 확실히 갈라 놓는다 */
+html[data-lang="ja"], body[data-lang="ja"] {
+  --ink: #16323C;          /* 남빛 */
+  --ink-2: #2F5563;
+  --brick: #C8503A;        /* 주홍 朱 */
+  --accent2: #4E8A7B;      /* 청자 */
+  --paper: #F4F1E9;
+  --card: #FCFAF5;
+  --line: #DDD6C7;
+  --wash1: rgba(22, 50, 60, .085);
+  --wash2: rgba(200, 80, 58, .09);
+}
+
 /* ---------- 바탕 ---------- */
 
 html[data-lang] {                          /* 바탕은 문서 뿌리가 칠한다 — 캔버스 전파로 헷갈리지 않게 */
@@ -318,6 +331,13 @@ main { padding-top: 1.15rem; }
   background: var(--brick); color: #fff; border-radius: 5px; padding: .02rem .38rem;
 }
 .pick.en .pk-mark { background: var(--ink); }
+.pick.ja .pk-mark { background: var(--accent2); }
+/* 언어가 셋일 때 마지막 칸은 한 줄을 통째로 — 2+1 로 어정쩡하게 남지 않게 */
+.cover-pick .pick:last-child:nth-child(odd) {
+  grid-column: 1 / -1; flex-direction: row; align-items: baseline; gap: .5rem;
+}
+.cover-pick .pick:last-child:nth-child(odd) .pk-name { margin-top: 0; }
+.cover-pick .pick:last-child:nth-child(odd) .pk-line { margin-left: auto; text-align: right; }
 .pk-name { font-family: var(--serif); font-size: 1.12rem; font-weight: 700; margin-top: .2rem; }
 .pk-line { font-size: .7rem; color: var(--dim); line-height: 1.4; }
 

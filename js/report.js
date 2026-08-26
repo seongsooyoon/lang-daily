@@ -77,6 +77,22 @@
     { k: 'sh·ch (share·check)', re: /sh|ch/ },
     { k: 'w (work·would)', re: /w/ }
   ];
+  // 일본어에서 한국인이 자주 놓치는 것 — 길이(장음·촉음)와 탁음
+  var JA_TESTS = [
+    { k: '장음 (おはよう·どうぞ)', re: /[ーおうえいあ]{2}|ō|ū|ā|ē|ī/ },
+    { k: '촉음 (ちょっと·いっぱい)', re: /っ|tt|kk|pp|ss/ },
+    { k: 'ん 한 박 (けんきゅう)', re: /ん|n[bkgmpt]|nn/ },
+    { k: '탁음 (が·ざ·だ·ば)', re: /[がぎぐげござじずぜぞだぢづでどばびぶべぼ]|[gzjdb]/ },
+    { k: 'つ (しつれい)', re: /つ|tsu/ },
+    { k: '요음 (きょ·しゅ)', re: /[ゃゅょ]|ky|sh|ch|ny|hy|my|ry|gy|by|py/ }
+  ];
+  function jaKeys(word) {
+    var s = String(word || '');
+    var out = [];
+    JA_TESTS.forEach(function (t) { if (t.re.test(s)) out.push(t.k); });
+    return out;
+  }
+
   function enKeys(word) {
     var s = String(word || '').toLowerCase();
     var out = [];
@@ -98,6 +114,14 @@
         marks.forEach(function (ok, i) {
           var g = zhGroup(inis[i] == null ? '' : inis[i]);
           w.Store.addSound(lang, g, ok);
+        });
+      } else if (lang === 'ja') {
+        // 일본어는 띄어쓰기가 없어 글자 단위로 본다. 발음 표기(로마자)도 함께 넣어 판정한다
+        var chars = String(text).split('');
+        marks.forEach(function (ok, i) {
+          jaKeys((chars[i] || '') + ' ' + String(phon || '')).forEach(function (k) {
+            w.Store.addSound(lang, k, ok);
+          });
         });
       } else {
         var words = String(text).toLowerCase().split(/[\s\-—–]+/)

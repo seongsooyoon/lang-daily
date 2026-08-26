@@ -13,14 +13,19 @@
   'use strict';
   var KEY = 'langdaily.v1';
 
+  var LANGS = ['zh', 'en', 'ja'];          // 언어를 늘릴 때 여기 한 곳만 고친다
+
   function blankLang() {
     return { done: {}, scores: {}, words: {}, tones: {}, sounds: {}, talk: {},
              reports: {}, boston: {},
              // 성취(점수·배지·퀘스트) — game.js 가 읽고 쓴다
              game: { xp: 0, log: {}, badges: {}, quests: {} } };
   }
+
   function blank() {
-    return { v: 3, lang: 'zh', rate: 0.8, why: '', plan: '', zh: blankLang(), en: blankLang() };
+    var b = { v: 4, lang: 'zh', rate: 0.8, why: '', plan: '' };
+    LANGS.forEach(function (L) { b[L] = blankLang(); });
+    return b;
   }
 
   function read() {
@@ -30,12 +35,12 @@
       var o = JSON.parse(raw);
       var b = blank();
       if (!o || typeof o !== 'object') return b;
-      b.lang = (o.lang === 'en' || o.lang === 'zh') ? o.lang : 'zh';
+      b.lang = (LANGS.indexOf(o.lang) >= 0) ? o.lang : 'zh';
       b.rate = (typeof o.rate === 'number' && o.rate >= 0.4 && o.rate <= 1.4) ? o.rate : 0.8;
       b.why = typeof o.why === 'string' ? o.why : '';
       b.plan = typeof o.plan === 'string' ? o.plan : '';
-      // v1 에서 올라온 진도도 그대로 살린다 — 없는 칸만 빈 값으로 채운다
-      ['zh', 'en'].forEach(function (L) {
+      // 예전 진도도 그대로 살린다 — 없는 칸만 빈 값으로 채운다
+      LANGS.forEach(function (L) {
         if (!o[L] || typeof o[L] !== 'object') return;
         Object.keys(blankLang()).forEach(function (k) {
           if (o[L][k] && typeof o[L][k] === 'object') b[L][k] = o[L][k];
@@ -62,6 +67,7 @@
 
   var Store = {
     state: read(),
+    LANGS: LANGS,
     todayStr: todayStr,      // 다른 모듈도 같은 기준으로 날짜를 찍게 한다
     save: function () { return write(this.state); },
 
@@ -201,7 +207,7 @@
 
     streak: function () {
       var dates = {};
-      ['zh', 'en'].forEach(function (L) {
+      LANGS.forEach(function (L) {
         var d = this.state[L].done;
         for (var k in d) if (d[k] && d[k].date) dates[d[k].date] = 1;
       }, this);

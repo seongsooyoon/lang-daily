@@ -97,6 +97,13 @@ create policy "duel update" on public.duels
   for update using (auth.uid() = challenger or auth.uid() = opponent)
   with check (auth.uid() = challenger or auth.uid() = opponent);
 
+-- 당사자는 자기 대결 기록을 지울 수 있어야 한다.
+-- (개인정보 처리방침에 '이용자는 삭제를 요구할 수 있다'고 적어 두었으므로 실제로 되게 만든다.
+--  이 정책이 없으면 delete 가 오류 없이 0행만 지우고 끝나 '지워진 줄 알았는데 남아 있는' 상태가 된다)
+drop policy if exists "duel delete" on public.duels;
+create policy "duel delete" on public.duels
+  for delete using (auth.uid() = challenger or auth.uid() = opponent);
+
 drop policy if exists "duel admin read" on public.duels;
 create policy "duel admin read" on public.duels
   for select using (public.is_admin());
